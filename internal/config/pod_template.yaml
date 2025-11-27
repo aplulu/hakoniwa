@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: hakoniwa-instance
+spec:
+  containers:
+    - name: desktop
+      image: lscr.io/linuxserver/webtop:latest
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: DISABLE_SUDO
+          value: "true"
+      ports:
+        - containerPort: 3000
+          name: http
+  restartPolicy: Never

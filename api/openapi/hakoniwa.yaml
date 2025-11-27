@@ -1,0 +1,66 @@
+openapi: 3.0.3
+info:
+  title: Hakoniwa API
+  version: 0.1.0
+  description: API for Hakoniwa On-Demand Desktop Service
+servers:
+  - url: /_hakoniwa/api
+paths:
+  /auth/me:
+    get:
+      summary: Get current user and instance status
+      operationId: getAuthMe
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthStatus'
+        '401':
+          description: Unauthorized (Not logged in)
+  /auth/anonymous:
+    post:
+      summary: Login anonymously (creates session and instance)
+      operationId: loginAnonymous
+      responses:
+        '200':
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthStatus'
+
+components:
+  schemas:
+    AuthStatus:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        instance:
+          $ref: '#/components/schemas/Instance'
+      required:
+        - user
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User ID (OpenID Connect sub or UUID)
+        type:
+          type: string
+          enum: [openid_connect, anonymous]
+      required:
+        - id
+        - type
+    Instance:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, running, terminating]
+        pod_ip:
+          type: string
+      required:
+        - status

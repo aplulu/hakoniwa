@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hakoniwa
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: hakoniwa
+      app.kubernetes.io/instance: hakoniwa-instance
+
+
+resources:
+  - serviceaccount.yaml
+  - role.yaml
+  - rolebinding.yaml
+  - deployment.yaml
+  - service.yaml
+
