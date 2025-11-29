@@ -89,7 +89,7 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if instance != nil && instance.Status == model.InstanceStatusRunning && instance.PodIP != "" {
 		// Proxy to Pod
-		h.proxyHandler.Proxy(instance.PodIP, w, r)
+		h.proxyHandler.Proxy(user.ID, instance.PodIP, w, r)
 		return
 	}
 

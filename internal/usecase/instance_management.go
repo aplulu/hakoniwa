@@ -12,6 +12,7 @@ import (
 type InstanceManagement interface {
 	GetInstanceStatus(ctx context.Context, userID string) (*model.Instance, error)
 	CreateInstance(ctx context.Context, userID string) error
+	UpdateLastActive(ctx context.Context, userID string) error
 }
 
 type InstanceInteractor struct {
@@ -24,6 +25,16 @@ func NewInstanceInteractor(instanceRepo repository.InstanceRepository, k8sClient
 		instanceRepo: instanceRepo,
 		k8sClient:    k8sClient,
 	}
+}
+
+func (i *InstanceInteractor) UpdateLastActive(ctx context.Context, userID string) error {
+	instance, err := i.instanceRepo.Get(ctx, userID)
+	if err != nil {
+		// If not found, maybe it's already deleted. We can ignore.
+		return nil
+	}
+	instance.LastActiveAt = time.Now()
+	return i.instanceRepo.Save(ctx, instance)
 }
 
 func (i *InstanceInteractor) GetInstanceStatus(ctx context.Context, userID string) (*model.Instance, error) {
