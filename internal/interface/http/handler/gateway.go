@@ -98,6 +98,11 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *GatewayHandler) serveReactApp(w http.ResponseWriter, r *http.Request) {
+	// Set headers to prevent caching
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
 	// Serve index.html for SPA
 	// We can reuse staticHandler but we need to make sure it serves index.html for unknown paths?
 	// Or explicitly serve index.html
