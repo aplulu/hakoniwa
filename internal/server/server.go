@@ -55,7 +55,7 @@ func StartServer(log *slog.Logger, staticDir string) error {
 		return fmt.Errorf("failed to create api server: %w", err)
 	}
 
-	proxyHandler := handler.NewProxyHandler(log)
+	proxyHandler := handler.NewProxyHandler(instanceUsecase, log)
 
 	gatewayHandler := handler.NewGatewayHandler(
 		authUsecase,
@@ -68,17 +68,17 @@ func StartServer(log *slog.Logger, staticDir string) error {
 
 	// Middleware
 	authMiddleware := middleware.NewAuthMiddleware(authUsecase)
-	handler := authMiddleware.Handle(gatewayHandler)
+	h := authMiddleware.Handle(gatewayHandler)
 
 	server = &http.Server{
 		Addr: net.JoinHostPort(config.Listen(), config.Port()),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.Path, "/_/docs/") {
-				http.StripPrefix("/_/docs", newDocsHandler()).ServeHTTP(w, r)
+			if strings.HasPrefix(r.URL.Path, "/_hakoniwa/docs/") {
+				http.StripPrefix("/_hakoniwa/docs", newDocsHandler()).ServeHTTP(w, r)
 				return
 			}
 
-			handler.ServeHTTP(w, r)
+			h.ServeHTTP(w, r)
 		}),
 	}
 
