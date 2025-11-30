@@ -155,14 +155,35 @@ func (s *Configuration) encodeFields(e *jx.Encoder) {
 			s.PrivacyPolicyURL.Encode(e)
 		}
 	}
+	{
+		e.FieldStart("auth_methods")
+		e.ArrStart()
+		for _, elem := range s.AuthMethods {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		if s.OidcName.Set {
+			e.FieldStart("oidc_name")
+			s.OidcName.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("auth_auto_login")
+		e.Bool(s.AuthAutoLogin)
+	}
 }
 
-var jsonFieldsNameOfConfiguration = [5]string{
+var jsonFieldsNameOfConfiguration = [8]string{
 	0: "title",
 	1: "message",
 	2: "logo_url",
 	3: "terms_of_service_url",
 	4: "privacy_policy_url",
+	5: "auth_methods",
+	6: "oidc_name",
+	7: "auth_auto_login",
 }
 
 // Decode decodes Configuration from json.
@@ -171,6 +192,7 @@ func (s *Configuration) Decode(d *jx.Decoder) error {
 		return errors.New("invalid: unable to decode Configuration to nil")
 	}
 	var requiredBitSet [1]uint8
+	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -230,6 +252,48 @@ func (s *Configuration) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"privacy_policy_url\"")
 			}
+		case "auth_methods":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				s.AuthMethods = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.AuthMethods = append(s.AuthMethods, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"auth_methods\"")
+			}
+		case "oidc_name":
+			if err := func() error {
+				s.OidcName.Reset()
+				if err := s.OidcName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"oidc_name\"")
+			}
+		case "auth_auto_login":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Bool()
+				s.AuthAutoLogin = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"auth_auto_login\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -240,7 +304,7 @@ func (s *Configuration) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b10100111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

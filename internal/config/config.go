@@ -48,6 +48,31 @@ type config struct {
 
 	// PrivacyPolicyURL is the URL to the privacy policy.
 	PrivacyPolicyURL string `envconfig:"PRIVACY_POLICY_URL" default:""`
+
+	// AuthMethods is the list of enabled authentication types.
+	AuthMethods []string `envconfig:"AUTH_METHODS" default:"anonymous"`
+
+	// AuthAutoLogin is a flag to automatically log in if only one auth method is enabled.
+	AuthAutoLogin bool `envconfig:"AUTH_AUTO_LOGIN" default:"false"`
+
+	// JWTSecret is the secret key for signing JWTs.
+	JWTSecret string `envconfig:"JWT_SECRET" default:"hakoniwa-secret-key"`
+
+	// SessionExpiration is the duration for which the session is valid.
+	SessionExpiration time.Duration `envconfig:"SESSION_EXPIRATION" default:"24h"`
+
+	// OIDCIssuerURL is the OIDC issuer URL.
+	OIDCIssuerURL string `envconfig:"OIDC_ISSUER_URL" default:""`
+	// OIDCClientID is the OpenID Connect client ID.
+	OIDCClientID string `envconfig:"OIDC_CLIENT_ID" default:""`
+	// OIDCClientSecret is the OpenID Connect client secret.
+	OIDCClientSecret string `envconfig:"OIDC_CLIENT_SECRET" default:""`
+	// OIDCRedirectURL is the OpenID Connect redirect URL.
+	OIDCRedirectURL string `envconfig:"OIDC_REDIRECT_URL" default:""`
+	// OIDCName is the display name for OpenID Connect login button.
+	OIDCName string `envconfig:"OIDC_NAME" default:"OpenID Connect"`
+	// OIDCScopes is the list of OpenID Connect scopes.
+	OIDCScopes []string `envconfig:"OIDC_SCOPES" default:"openid,profile"`
 }
 
 var conf config
@@ -143,4 +168,74 @@ func TermsOfServiceURL() string {
 // PrivacyPolicyURL returns the URL to the privacy policy.
 func PrivacyPolicyURL() string {
 	return conf.PrivacyPolicyURL
+}
+
+// AuthMethodsList returns the list of enabled authentication types.
+func AuthMethodsList() []string {
+	return conf.AuthMethods
+}
+
+// AuthAutoLogin returns true if automatic login should occur.
+func AuthAutoLogin() bool {
+	return conf.AuthAutoLogin
+}
+
+// JWTSecret returns the secret key for signing JWTs.
+func JWTSecret() string {
+	return conf.JWTSecret
+}
+
+// SessionExpiration returns the duration for which the session is valid.
+func SessionExpiration() time.Duration {
+	return conf.SessionExpiration
+}
+
+// OIDCEnabled returns true if OIDC is enabled.
+func OIDCEnabled() bool {
+	for _, t := range conf.AuthMethods {
+		if t == "oidc" {
+			return true
+		}
+	}
+	return false
+}
+
+// AnonymousEnabled returns true if anonymous login is enabled.
+func AnonymousEnabled() bool {
+	for _, t := range conf.AuthMethods {
+		if t == "anonymous" {
+			return true
+		}
+	}
+	return false
+}
+
+// OIDCIssuerURL returns the OIDC issuer URL.
+func OIDCIssuerURL() string {
+	return conf.OIDCIssuerURL
+}
+
+// OIDCClientID returns the OIDC client ID.
+func OIDCClientID() string {
+	return conf.OIDCClientID
+}
+
+// OIDCClientSecret returns the OIDC client secret.
+func OIDCClientSecret() string {
+	return conf.OIDCClientSecret
+}
+
+// OIDCRedirectURL returns the OIDC redirect URL.
+func OIDCRedirectURL() string {
+	return conf.OIDCRedirectURL
+}
+
+// OIDCScopes returns the list of OIDC scopes.
+func OIDCScopes() []string {
+	return conf.OIDCScopes
+}
+
+// OIDCName returns the display name for OIDC login button.
+func OIDCName() string {
+	return conf.OIDCName
 }

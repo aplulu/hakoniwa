@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import useSWR, { mutate } from 'swr';
 import { useTranslation, Trans } from 'react-i18next';
 import { Loader2, AlertCircle, ArrowRight } from 'lucide-react';
@@ -33,6 +33,9 @@ interface Configuration {
   logo_url: string;
   terms_of_service_url?: string;
   privacy_policy_url?: string;
+  auth_methods: string[];
+  oidc_name: string;
+  auth_auto_login: boolean;
 }
 
 const fetcher = (url: string) =>
@@ -65,15 +68,65 @@ function App() {
     data: authData,
     error: swrAuthError,
     isLoading,
-  } = useSWR<AuthStatus | null>('/_hakoniwa/api/auth/me', fetcher, {
-    refreshInterval: shouldPoll ? 3000 : 0,
-    onError: (err) => {
-      console.error(err);
-      setAuthError(t('error.connection_failed'));
-    },
-  });
+  } = useSWR<AuthStatus | null>(
+    '/_hakoniwa/api/auth/me', 
+    fetcher,
+    {
+      refreshInterval: shouldPoll ? 3000 : 0,
+      onError: (err) => {
+        console.error(err);
+        setAuthError(t('error.connection_failed'));
+      },
+    }
+  );
 
   const instanceStatus = authData?.instance?.status;
+
+  // Login Anonymous Action
+  const loginAnonymous = useCallback(async () => {
+    setAuthError('');
+    try {
+      const res = await fetch('/_hakoniwa/api/auth/anonymous', {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('Login failed');
+      // After login, force revalidate /auth/me
+      await mutate('/_hakoniwa/api/auth/me');
+    } catch (err) {
+      console.error(err);
+      setAuthError(t('error.login_failed'));
+    }
+  }, [t]);
+
+  // Auto Login Check
+  useEffect(() => {
+    if (isLoading || !config || !config.auth_auto_login || authError || authData) return;
+    
+    // Don't skip if we are already in an error state from URL
+    if (new URLSearchParams(window.location.search).get('error')) return;
+
+    const methods = config.auth_methods;
+    if (methods.length === 1) {
+      const method = methods[0];
+      if (method === 'oidc') {
+        window.location.href = '/_hakoniwa/api/auth/oidc/authorize';
+      } else if (method === 'anonymous') {
+        loginAnonymous();
+      }
+    }
+  }, [isLoading, config, authError, authData, loginAnonymous]);
+
+  // Check for errors in URL (redirected from backend)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+    if (error) {
+      console.error('Auth error:', error);
+      setAuthError(t('error.login_failed'));
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [t]);
 
   useEffect(() => {
     if (swrAuthError) return;
@@ -89,21 +142,6 @@ function App() {
       setShouldPoll(false);
     }
   }, [instanceStatus, swrAuthError]);
-
-  const loginAnonymous = async () => {
-    setAuthError('');
-    try {
-      const res = await fetch('/_hakoniwa/api/auth/anonymous', {
-        method: 'POST',
-      });
-      if (!res.ok) throw new Error('Login failed');
-      // After login, force revalidate /auth/me
-      await mutate('/_hakoniwa/api/auth/me');
-    } catch (err) {
-      console.error(err);
-      setAuthError(t('error.login_failed'));
-    }
-  };
 
   // Determine UI State
   if (isLoading && !authData && !authError) {
@@ -257,37 +295,48 @@ function App() {
           </Flex>
 
           <Flex direction="column" gap="3" mt="2">
-            <Button
-              size="3"
-              variant="outline"
-              disabled
-              style={{ height: '48px', fontSize: '16px' }}>
-              {t('login.oidc_button')}
-            </Button>
+            {config?.auth_methods.includes('oidc') && (
+              <Button
+                size="3"
+                onClick={() => {
+                  window.location.href = '/_hakoniwa/api/auth/oidc/authorize';
+                }}
+                style={{ height: '48px', fontSize: '16px', cursor: 'pointer' }}
+                className="login-button">
+                {t('login.oidc_button', {
+                  name: config?.oidc_name || 'OpenID Connect',
+                })}
+                <ArrowRight className="login-button-arrow" />
+              </Button>
+            )}
 
-            <Flex align="center" gap="2">
-              <Box
-                style={{ flex: 1, height: 1, background: 'var(--gray-5)' }}
-              />
-              <Text
-                size="1"
-                color="gray"
-                style={{ textTransform: 'uppercase' }}>
-                {t('login.or_continue')}
-              </Text>
-              <Box
-                style={{ flex: 1, height: 1, background: 'var(--gray-5)' }}
-              />
-            </Flex>
+            {config?.auth_methods.includes('oidc') &&
+              config?.auth_methods.includes('anonymous') && (
+                <Flex align="center" gap="2">
+                  <Box
+                    style={{ flex: 1, height: 1, background: 'var(--gray-5)' }}
+                  />
+                  <Text
+                    size="1"
+                    color="gray"
+                    style={{ textTransform: 'uppercase' }}>
+                    {t('login.or_continue')}
+                  </Text>
+                  <Box
+                    style={{ flex: 1, height: 1, background: 'var(--gray-5)' }}
+                  />
+                </Flex>
+              )}
 
-            <Button
-              size="3"
-              onClick={loginAnonymous}
-              style={{ height: '48px', fontSize: '16px', cursor: 'pointer' }}
-              className="anonymous-button">
-              {t('login.anonymous_button')}
-              <ArrowRight className="anonymous-button-arrow" />
-            </Button>
+            {config?.auth_methods.includes('anonymous') && (
+                          <Button
+                            size="3"
+                            onClick={loginAnonymous}
+                            style={{ height: '48px', fontSize: '16px', cursor: 'pointer' }}
+                            className="login-button">
+                            {t('login.anonymous_button')}
+                            <ArrowRight className="login-button-arrow" />
+                          </Button>            )}
           </Flex>
 
           {(config?.terms_of_service_url || config?.privacy_policy_url) && (

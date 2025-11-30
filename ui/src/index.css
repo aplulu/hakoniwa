@@ -19,10 +19,10 @@ body {
   animation: spin 1s linear infinite;
 }
 
-.anonymous-button .anonymous-button-arrow {
+.login-button .login-button-arrow {
   transition: transform 0.2s ease-in-out;
 }
 
-.anonymous-button:hover .anonymous-button-arrow {
+.login-button:hover .login-button-arrow {
   transform: translateX(4px);
 }

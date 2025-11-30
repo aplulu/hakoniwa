@@ -9,6 +9,7 @@ const resources = {
         preparing: 'Preparing Desktop',
         spinning_up: 'We are spinning up your personal environment.',
         connecting: 'Connecting to {{title}}...',
+        authenticating: 'Authenticating...',
         label: 'Status:',
         unknown: 'unknown',
       },
@@ -22,9 +23,9 @@ const resources = {
         retry: 'Retry',
       },
       login: {
-        oidc_button: 'Login with OIDC (Coming Soon)',
+        oidc_button: 'Login with {{name}}',
         or_continue: 'Or continue with',
-        anonymous_button: 'Continue as Anonymous',
+        anonymous_button: 'Continue as Guest',
       },
       legal: {
         agreement:
@@ -42,6 +43,7 @@ const resources = {
         preparing: 'デスクトップを準備中',
         spinning_up: 'パーソナル環境を起動しています。',
         connecting: '{{title}}へ接続中...',
+        authenticating: '認証中...',
         label: 'ステータス:',
         unknown: '不明',
       },
@@ -55,9 +57,9 @@ const resources = {
         retry: '再試行',
       },
       login: {
-        oidc_button: 'OIDCでログイン (近日公開)',
+        oidc_button: '{{name}}でログイン',
         or_continue: 'または',
-        anonymous_button: '匿名で続行',
+        anonymous_button: 'ゲストでログイン',
       },
       legal: {
         agreement:

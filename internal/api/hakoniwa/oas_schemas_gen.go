@@ -46,6 +46,12 @@ type Configuration struct {
 	TermsOfServiceURL OptString `json:"terms_of_service_url"`
 	// URL to the privacy policy.
 	PrivacyPolicyURL OptString `json:"privacy_policy_url"`
+	// List of enabled authentication methods (e.g. 'anonymous', 'oidc').
+	AuthMethods []string `json:"auth_methods"`
+	// Display name for the OIDC login button.
+	OidcName OptString `json:"oidc_name"`
+	// Whether to automatically log in if only one auth method is available.
+	AuthAutoLogin bool `json:"auth_auto_login"`
 }
 
 // GetTitle returns the value of Title.
@@ -73,6 +79,21 @@ func (s *Configuration) GetPrivacyPolicyURL() OptString {
 	return s.PrivacyPolicyURL
 }
 
+// GetAuthMethods returns the value of AuthMethods.
+func (s *Configuration) GetAuthMethods() []string {
+	return s.AuthMethods
+}
+
+// GetOidcName returns the value of OidcName.
+func (s *Configuration) GetOidcName() OptString {
+	return s.OidcName
+}
+
+// GetAuthAutoLogin returns the value of AuthAutoLogin.
+func (s *Configuration) GetAuthAutoLogin() bool {
+	return s.AuthAutoLogin
+}
+
 // SetTitle sets the value of Title.
 func (s *Configuration) SetTitle(val string) {
 	s.Title = val
@@ -96,6 +117,21 @@ func (s *Configuration) SetTermsOfServiceURL(val OptString) {
 // SetPrivacyPolicyURL sets the value of PrivacyPolicyURL.
 func (s *Configuration) SetPrivacyPolicyURL(val OptString) {
 	s.PrivacyPolicyURL = val
+}
+
+// SetAuthMethods sets the value of AuthMethods.
+func (s *Configuration) SetAuthMethods(val []string) {
+	s.AuthMethods = val
+}
+
+// SetOidcName sets the value of OidcName.
+func (s *Configuration) SetOidcName(val OptString) {
+	s.OidcName = val
+}
+
+// SetAuthAutoLogin sets the value of AuthAutoLogin.
+func (s *Configuration) SetAuthAutoLogin(val bool) {
+	s.AuthAutoLogin = val
 }
 
 // GetAuthMeUnauthorized is response for GetAuthMe operation.
@@ -175,6 +211,36 @@ func (s *InstanceStatus) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// OidcAuthorizeFound is response for OidcAuthorize operation.
+type OidcAuthorizeFound struct {
+	Location string
+}
+
+// GetLocation returns the value of Location.
+func (s *OidcAuthorizeFound) GetLocation() string {
+	return s.Location
+}
+
+// SetLocation sets the value of Location.
+func (s *OidcAuthorizeFound) SetLocation(val string) {
+	s.Location = val
+}
+
+// OidcCallbackFound is response for OidcCallback operation.
+type OidcCallbackFound struct {
+	Location string
+}
+
+// GetLocation returns the value of Location.
+func (s *OidcCallbackFound) GetLocation() string {
+	return s.Location
+}
+
+// SetLocation sets the value of Location.
+func (s *OidcCallbackFound) SetLocation(val string) {
+	s.Location = val
 }
 
 // NewOptInstance returns new OptInstance with value set to v.
