@@ -30,7 +30,22 @@ func StartServer(log *slog.Logger, staticDir string) error {
 	k8sClient, err := kubernetes.NewClient(log)
 	if err != nil {
 		log.Error("failed to create k8s client", "error", err)
-		return fmt.Errorf("failed to create k8s client: %w", err)
+		return fmt.Errorf("server.StartServer: failed to create k8s client: %w", err)
+	}
+
+	// Sync instances from Kubernetes
+	log.Info("Syncing instances from Kubernetes...")
+	existingInstances, err := k8sClient.ListInstancePods(context.Background())
+	if err != nil {
+		log.Error("failed to sync instances from k8s", "error", err)
+	} else {
+		for _, instance := range existingInstances {
+			if err := instanceRepository.Save(context.Background(), instance); err != nil {
+				log.Error("failed to restore instance to repository", "user_id", instance.UserID, "error", err)
+			} else {
+				log.Info("Restored instance", "user_id", instance.UserID, "pod_name", instance.PodName)
+			}
+		}
 	}
 
 	// Background Workers
@@ -52,7 +67,7 @@ func StartServer(log *slog.Logger, staticDir string) error {
 	apiHandler := handler.NewAPIHandler(authUsecase, instanceUsecase)
 	apiServer, err := hakoniwa.NewServer(apiHandler)
 	if err != nil {
-		return fmt.Errorf("failed to create api server: %w", err)
+		return fmt.Errorf("server.StartServer: failed to create api server: %w", err)
 	}
 
 	proxyHandler := handler.NewProxyHandler(instanceUsecase, log)

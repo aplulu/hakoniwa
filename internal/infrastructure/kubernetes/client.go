@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 
-	"github.com/aplulu/hakoniwa/internal/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,6 +17,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/aplulu/hakoniwa/internal/config"
+	"github.com/aplulu/hakoniwa/internal/domain/model"
+)
+
+const (
+	UserIDAnnotationKey = "hakoniwa.aplulu.com/user-id"
+	ManagedByLabelKey   = "app.kubernetes.io/managed-by"
 )
 
 type Client struct {
@@ -42,7 +50,7 @@ func NewClient(logger *slog.Logger) (*Client, error) {
 
 	clientset, err := kubernetes.NewForConfig(clusterConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create clientset: %w", err)
+		return nil, fmt.Errorf("kubernetes.NewClient: failed to create clientset: %w", err)
 	}
 
 	// Get namespace from env or default
@@ -60,20 +68,20 @@ func NewClient(logger *slog.Logger) (*Client, error) {
 
 func (c *Client) CreateInstancePod(ctx context.Context, userID string) (string, error) {
 	if c.clientset == nil {
-		return "", fmt.Errorf("k8s client not configured (no-op mode)")
+		return "", fmt.Errorf("kubernetes.CreateInstancePod: k8s client not configured (no-op mode)")
 	}
 	sanitizedID := sanitizeUserID(userID)
 	podName := fmt.Sprintf("hakoniwa-%s", sanitizedID)
 
 	templateBytes, err := config.GetPodTemplate(c.logger)
 	if err != nil {
-		return "", fmt.Errorf("failed to get pod template: %w", err)
+		return "", fmt.Errorf("kubernetes.CreateInstancePod: failed to get pod template: %w", err)
 	}
 
 	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(templateBytes), 4096)
 	var u unstructured.Unstructured
 	if err := decoder.Decode(&u); err != nil {
-		return "", fmt.Errorf("failed to decode pod template: %w", err)
+		return "", fmt.Errorf("kubernetes.CreateInstancePod: failed to decode pod template: %w", err)
 	}
 
 	u.SetName(podName)
@@ -81,18 +89,24 @@ func (c *Client) CreateInstancePod(ctx context.Context, userID string) (string, 
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	labels["user"] = sanitizedID
-	labels["app.kubernetes.io/managed-by"] = "hakoniwa"
+	labels[ManagedByLabelKey] = "hakoniwa"
 	u.SetLabels(labels)
+
+	annotations := u.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[UserIDAnnotationKey] = userID
+	u.SetAnnotations(annotations)
 
 	var pod corev1.Pod
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &pod); err != nil {
-		return "", fmt.Errorf("failed to convert unstructured to pod: %w", err)
+		return "", fmt.Errorf("kubernetes.CreateInstancePod: failed to convert unstructured to pod: %w", err)
 	}
 
 	_, err = c.clientset.CoreV1().Pods(c.namespace).Create(ctx, &pod, metav1.CreateOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to create pod: %w", err)
+		return "", fmt.Errorf("kubernetes.CreateInstancePod: failed to create pod: %w", err)
 	}
 
 	c.logger.Info("Created instance pod", "pod", podName, "user", userID)
@@ -101,11 +115,11 @@ func (c *Client) CreateInstancePod(ctx context.Context, userID string) (string, 
 
 func (c *Client) GetPodIP(ctx context.Context, podName string) (string, error) {
 	if c.clientset == nil {
-		return "", fmt.Errorf("k8s client not configured (no-op mode)")
+		return "", fmt.Errorf("kubernetes.CreateInstancePod: k8s client not configured (no-op mode)")
 	}
 	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to get pod: %w", err)
+		return "", fmt.Errorf("kubernetes.CreateInstancePod: failed to get pod: %w", err)
 	}
 
 	if pod.Status.Phase == corev1.PodRunning {
@@ -121,16 +135,57 @@ func (c *Client) GetPodIP(ctx context.Context, podName string) (string, error) {
 
 func (c *Client) DeletePod(ctx context.Context, podName string) error {
 	if c.clientset == nil {
-		return fmt.Errorf("k8s client not configured (no-op mode)")
+		return fmt.Errorf("kubernetes.DeletePod: k8s client not configured (no-op mode)")
 	}
 	err := c.clientset.CoreV1().Pods(c.namespace).Delete(ctx, podName, metav1.DeleteOptions{})
 	if err != nil {
 		// If not found, consider it deleted
 		// Check error type if strict needed, but for now just return error
-		return fmt.Errorf("failed to delete pod: %w", err)
+		return fmt.Errorf("kubernetes.DeletePod: failed to delete pod: %w", err)
 	}
 	c.logger.Info("Deleted instance pod", "pod", podName)
 	return nil
+}
+
+func (c *Client) ListInstancePods(ctx context.Context) ([]*model.Instance, error) {
+	if c.clientset == nil {
+		return nil, fmt.Errorf("k8s client not configured (no-op mode)")
+	}
+	pods, err := c.clientset.CoreV1().Pods(c.namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: ManagedByLabelKey + "=hakoniwa",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("kubernetes.ListInstancePods: failed to list pods: %w", err)
+	}
+
+	var instances []*model.Instance
+	for _, pod := range pods.Items {
+		// Skip terminating pods
+		if pod.DeletionTimestamp != nil {
+			continue
+		}
+
+		userID := pod.Annotations[UserIDAnnotationKey]
+
+		status := model.InstanceStatusPending
+		if pod.Status.Phase == corev1.PodRunning {
+			status = model.InstanceStatusRunning
+		} else if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+			status = model.InstanceStatusTerminating
+		}
+
+		// For recovery, we assume they are active now to prevent immediate cleanup
+		lastActiveAt := time.Now()
+
+		instances = append(instances, &model.Instance{
+			UserID:       userID,
+			PodName:      pod.Name,
+			PodIP:        pod.Status.PodIP,
+			Status:       status,
+			LastActiveAt: lastActiveAt,
+		})
+	}
+	return instances, nil
 }
 
 // sanitizeUserID makes the user ID safe for use in Kubernetes resource names
