@@ -82,6 +82,7 @@ func (c *Client) CreateInstancePod(ctx context.Context, userID string) (string, 
 		labels = make(map[string]string)
 	}
 	labels["user"] = sanitizedID
+	labels["app.kubernetes.io/managed-by"] = "hakoniwa"
 	u.SetLabels(labels)
 
 	var pod corev1.Pod
@@ -108,10 +109,14 @@ func (c *Client) GetPodIP(ctx context.Context, podName string) (string, error) {
 	}
 
 	if pod.Status.Phase == corev1.PodRunning {
-		return pod.Status.PodIP, nil
+		for _, cond := range pod.Status.Conditions {
+			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+				return pod.Status.PodIP, nil
+			}
+		}
 	}
 
-	return "", nil // Not running or no IP yet
+	return "", nil // Not running or not ready yet
 }
 
 func (c *Client) DeletePod(ctx context.Context, podName string) error {

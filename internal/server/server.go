@@ -73,6 +73,12 @@ func StartServer(log *slog.Logger, staticDir string) error {
 	server = &http.Server{
 		Addr: net.JoinHostPort(config.Listen(), config.Port()),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/healthz" {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("ok"))
+				return
+			}
+
 			if strings.HasPrefix(r.URL.Path, "/_hakoniwa/docs/") {
 				http.StripPrefix("/_hakoniwa/docs", newDocsHandler()).ServeHTTP(w, r)
 				return
