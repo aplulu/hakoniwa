@@ -48,9 +48,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/auth/"
+		case '/': // Prefix: "/"
 
-			if l := len("/auth/"); len(elem) >= l && elem[0:l] == "/auth/" {
+			if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 				elem = elem[l:]
 			} else {
 				break
@@ -60,29 +60,63 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			switch elem[0] {
-			case 'a': // Prefix: "anonymous"
+			case 'a': // Prefix: "auth/"
 
-				if l := len("anonymous"); len(elem) >= l && elem[0:l] == "anonymous" {
+				if l := len("auth/"); len(elem) >= l && elem[0:l] == "auth/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
 				if len(elem) == 0 {
-					// Leaf node.
-					switch r.Method {
-					case "POST":
-						s.handleLoginAnonymousRequest([0]string{}, elemIsEscaped, w, r)
-					default:
-						s.notAllowed(w, r, "POST")
+					break
+				}
+				switch elem[0] {
+				case 'a': // Prefix: "anonymous"
+
+					if l := len("anonymous"); len(elem) >= l && elem[0:l] == "anonymous" {
+						elem = elem[l:]
+					} else {
+						break
 					}
 
-					return
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleLoginAnonymousRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "POST")
+						}
+
+						return
+					}
+
+				case 'm': // Prefix: "me"
+
+					if l := len("me"); len(elem) >= l && elem[0:l] == "me" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "GET":
+							s.handleGetAuthMeRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "GET")
+						}
+
+						return
+					}
+
 				}
 
-			case 'm': // Prefix: "me"
+			case 'c': // Prefix: "configuration"
 
-				if l := len("me"); len(elem) >= l && elem[0:l] == "me" {
+				if l := len("configuration"); len(elem) >= l && elem[0:l] == "configuration" {
 					elem = elem[l:]
 				} else {
 					break
@@ -92,7 +126,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					// Leaf node.
 					switch r.Method {
 					case "GET":
-						s.handleGetAuthMeRequest([0]string{}, elemIsEscaped, w, r)
+						s.handleGetConfigurationRequest([0]string{}, elemIsEscaped, w, r)
 					default:
 						s.notAllowed(w, r, "GET")
 					}
@@ -188,9 +222,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/auth/"
+		case '/': // Prefix: "/"
 
-			if l := len("/auth/"); len(elem) >= l && elem[0:l] == "/auth/" {
+			if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 				elem = elem[l:]
 			} else {
 				break
@@ -200,34 +234,73 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				break
 			}
 			switch elem[0] {
-			case 'a': // Prefix: "anonymous"
+			case 'a': // Prefix: "auth/"
 
-				if l := len("anonymous"); len(elem) >= l && elem[0:l] == "anonymous" {
+				if l := len("auth/"); len(elem) >= l && elem[0:l] == "auth/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
 				if len(elem) == 0 {
-					// Leaf node.
-					switch method {
-					case "POST":
-						r.name = LoginAnonymousOperation
-						r.summary = "Login anonymously (creates session and instance)"
-						r.operationID = "loginAnonymous"
-						r.operationGroup = ""
-						r.pathPattern = "/auth/anonymous"
-						r.args = args
-						r.count = 0
-						return r, true
-					default:
-						return
+					break
+				}
+				switch elem[0] {
+				case 'a': // Prefix: "anonymous"
+
+					if l := len("anonymous"); len(elem) >= l && elem[0:l] == "anonymous" {
+						elem = elem[l:]
+					} else {
+						break
 					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = LoginAnonymousOperation
+							r.summary = "Login anonymously (creates session and instance)"
+							r.operationID = "loginAnonymous"
+							r.operationGroup = ""
+							r.pathPattern = "/auth/anonymous"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
+				case 'm': // Prefix: "me"
+
+					if l := len("me"); len(elem) >= l && elem[0:l] == "me" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "GET":
+							r.name = GetAuthMeOperation
+							r.summary = "Get current user and instance status"
+							r.operationID = "getAuthMe"
+							r.operationGroup = ""
+							r.pathPattern = "/auth/me"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
 				}
 
-			case 'm': // Prefix: "me"
+			case 'c': // Prefix: "configuration"
 
-				if l := len("me"); len(elem) >= l && elem[0:l] == "me" {
+				if l := len("configuration"); len(elem) >= l && elem[0:l] == "configuration" {
 					elem = elem[l:]
 				} else {
 					break
@@ -237,11 +310,11 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					// Leaf node.
 					switch method {
 					case "GET":
-						r.name = GetAuthMeOperation
-						r.summary = "Get current user and instance status"
-						r.operationID = "getAuthMe"
+						r.name = GetConfigurationOperation
+						r.summary = "Get application configuration"
+						r.operationID = "getConfiguration"
 						r.operationGroup = ""
-						r.pathPattern = "/auth/me"
+						r.pathPattern = "/configuration"
 						r.args = args
 						r.count = 0
 						return r, true

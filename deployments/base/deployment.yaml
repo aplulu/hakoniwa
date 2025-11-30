@@ -23,7 +23,21 @@ spec:
             - containerPort: 8080
               name: http
           env:
+            - name: TITLE
+              value: "Hakoniwa"
+            - name: MESSAGE
+              value: "On-Demand Cloud Desktop Environment"
+            - name: POD_TEMPLATE_PATH
+              value: "/etc/hakoniwa/pod_template.yaml"
             - name: KUBERNETES_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+          volumeMounts:
+            - name: pod-template-volume
+              mountPath: /etc/hakoniwa
+              readOnly: true
+      volumes:
+        - name: pod-template-volume
+          configMap:
+            name: pod-template

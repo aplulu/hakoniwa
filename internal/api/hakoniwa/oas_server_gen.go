@@ -14,6 +14,12 @@ type Handler interface {
 	//
 	// GET /auth/me
 	GetAuthMe(ctx context.Context) (GetAuthMeRes, error)
+	// GetConfiguration implements getConfiguration operation.
+	//
+	// Get application configuration.
+	//
+	// GET /configuration
+	GetConfiguration(ctx context.Context) (*Configuration, error)
 	// LoginAnonymous implements loginAnonymous operation.
 	//
 	// Login anonymously (creates session and instance).

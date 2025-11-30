@@ -34,6 +34,70 @@ func (s *AuthStatus) SetInstance(val OptInstance) {
 
 func (*AuthStatus) getAuthMeRes() {}
 
+// Ref: #/components/schemas/Configuration
+type Configuration struct {
+	// Application title.
+	Title string `json:"title"`
+	// Welcome message.
+	Message string `json:"message"`
+	// URL to the application logo.
+	LogoURL string `json:"logo_url"`
+	// URL to the terms of service.
+	TermsOfServiceURL OptString `json:"terms_of_service_url"`
+	// URL to the privacy policy.
+	PrivacyPolicyURL OptString `json:"privacy_policy_url"`
+}
+
+// GetTitle returns the value of Title.
+func (s *Configuration) GetTitle() string {
+	return s.Title
+}
+
+// GetMessage returns the value of Message.
+func (s *Configuration) GetMessage() string {
+	return s.Message
+}
+
+// GetLogoURL returns the value of LogoURL.
+func (s *Configuration) GetLogoURL() string {
+	return s.LogoURL
+}
+
+// GetTermsOfServiceURL returns the value of TermsOfServiceURL.
+func (s *Configuration) GetTermsOfServiceURL() OptString {
+	return s.TermsOfServiceURL
+}
+
+// GetPrivacyPolicyURL returns the value of PrivacyPolicyURL.
+func (s *Configuration) GetPrivacyPolicyURL() OptString {
+	return s.PrivacyPolicyURL
+}
+
+// SetTitle sets the value of Title.
+func (s *Configuration) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetMessage sets the value of Message.
+func (s *Configuration) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetLogoURL sets the value of LogoURL.
+func (s *Configuration) SetLogoURL(val string) {
+	s.LogoURL = val
+}
+
+// SetTermsOfServiceURL sets the value of TermsOfServiceURL.
+func (s *Configuration) SetTermsOfServiceURL(val OptString) {
+	s.TermsOfServiceURL = val
+}
+
+// SetPrivacyPolicyURL sets the value of PrivacyPolicyURL.
+func (s *Configuration) SetPrivacyPolicyURL(val OptString) {
+	s.PrivacyPolicyURL = val
+}
+
 // GetAuthMeUnauthorized is response for GetAuthMe operation.
 type GetAuthMeUnauthorized struct{}
 

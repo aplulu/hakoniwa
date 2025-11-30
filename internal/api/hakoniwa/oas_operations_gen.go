@@ -6,6 +6,7 @@ package hakoniwa
 type OperationName = string
 
 const (
-	GetAuthMeOperation      OperationName = "GetAuthMe"
-	LoginAnonymousOperation OperationName = "LoginAnonymous"
+	GetAuthMeOperation        OperationName = "GetAuthMe"
+	GetConfigurationOperation OperationName = "GetConfiguration"
+	LoginAnonymousOperation   OperationName = "LoginAnonymous"
 )
