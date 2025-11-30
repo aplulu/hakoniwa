@@ -18,4 +18,16 @@ spec:
       ports:
         - containerPort: 3000
           name: http
+      livenessProbe:
+        httpGet:
+          path: /
+          port: http
+        initialDelaySeconds: 5
+        periodSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /
+          port: http
+        initialDelaySeconds: 5
+        periodSeconds: 10
   restartPolicy: Never
