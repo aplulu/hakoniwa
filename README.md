@@ -1,5 +1,7 @@
 # Hakoniwa (箱庭)
 
+<img src="https://raw.githubusercontent.com/aplulu/hakoniwa/main/ui/public/hakoniwa_logo.webp" width="200" alt="Hakoniwa Logo">
+
 Hakoniwa is an On-Demand Desktop Environment service running on Kubernetes. It dynamically provisions lightweight desktop environments for users and serves them through a unified web interface.
 
 ## Features
@@ -10,8 +12,6 @@ Hakoniwa is an On-Demand Desktop Environment service running on Kubernetes. It d
 *   **Kubernetes Native:** Fully integrated with Kubernetes for pod management using `client-go`.
 
 ## Architecture
-
-Hakoniwa follows a layered architecture:
 
 *   **Frontend:** React (Vite + TypeScript + Tailwind CSS) - Handles authentication UI, status polling, and loading screens.
 *   **Backend:** Go (Standard Library + `client-go`) - Manages authentication, Kubernetes pod lifecycle, and reverse proxying.
@@ -69,15 +69,20 @@ Hakoniwa is designed to be deployed on Kubernetes using Kustomize.
 
 Configuration is handled via environment variables:
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `LISTEN` | Address to listen on | `""` (All interfaces) |
-| `PORT` | Port to listen on | `8080` |
-| `KUBECONFIG` | Path to kubeconfig file (optional) | `""` |
-| `KUBERNETES_NAMESPACE` | Namespace to manage pods in | `default` |
-| `INSTANCE_INACTIVITY_TIMEOUT`| Duration before idle instances are reaped | `30m` |
-| `MAX_POD_COUNT` | Maximum concurrent desktop instances | `10` |
+| Variable | Description | Default                      |
+| :--- | :--- |:-----------------------------|
+| `LISTEN` | Address to listen on | `""` (All interfaces)        |
+| `PORT` | Port to listen on | `8080`                       |
+| `KUBECONFIG` | Path to kubeconfig file (optional) | `""`                         |
+| `KUBERNETES_NAMESPACE` | Namespace to manage pods in | `default`                    |
+| `INSTANCE_INACTIVITY_TIMEOUT`| Duration before idle instances are reaped | `1m`                         |
+| `MAX_POD_COUNT` | Maximum concurrent desktop instances | `3`                          |
 | `POD_TEMPLATE_PATH` | Path to a custom Pod YAML template | `""` (Uses embedded default) |
+| `TITLE` | Application title | `Hakoniwa` |
+| `MESSAGE` | Welcome message displayed below the title | `On-Demand Cloud Desktop Environment` |
+| `LOGO_URL` | URL to the application logo | `/_hakoniwa/hakoniwa_logo.webp` |
+| `TERMS_OF_SERVICE_URL` | URL to the terms of service | `""` |
+| `PRIVACY_POLICY_URL` | URL to the privacy policy | `""` |
 
 ## License
 

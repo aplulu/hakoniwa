@@ -17,3 +17,8 @@ resources:
   - deployment.yaml
   - service.yaml
 
+configMapGenerator:
+  - name: pod-template
+    files:
+      - pod_template.yaml
+

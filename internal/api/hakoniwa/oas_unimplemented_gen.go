@@ -22,6 +22,15 @@ func (UnimplementedHandler) GetAuthMe(ctx context.Context) (r GetAuthMeRes, _ er
 	return r, ht.ErrNotImplemented
 }
 
+// GetConfiguration implements getConfiguration operation.
+//
+// Get application configuration.
+//
+// GET /configuration
+func (UnimplementedHandler) GetConfiguration(ctx context.Context) (r *Configuration, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // LoginAnonymous implements loginAnonymous operation.
 //
 // Login anonymously (creates session and instance).

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/aplulu/hakoniwa/internal/api/hakoniwa"
+	"github.com/aplulu/hakoniwa/internal/config"
 	"github.com/aplulu/hakoniwa/internal/domain/model"
 	"github.com/aplulu/hakoniwa/internal/interface/http/middleware"
 	"github.com/aplulu/hakoniwa/internal/usecase"
@@ -85,11 +86,11 @@ func (h *APIHandler) LoginAnonymous(ctx context.Context) (*hakoniwa.AuthStatus, 
 	// Let's add a SetCookie hook in the context using middleware?
 	// Or simpler: The generated Server has `ServeHTTP`. We can wrap the `LoginAnonymous` logic?
 	// No, `LoginAnonymous` is called by `Server`.
-	
+
 	// Ideally: Define `Set-Cookie` header in OpenAPI response.
 	// Workaround: Use a custom middleware that intercepts the response?
 	// Or use context to pass the token to a middleware that sets the cookie?
-	
+
 	// Let's use a context value to pass the token back to the wrapper.
 	if setter, ok := ctx.Value(CookieSetterKey).(func(string)); ok {
 		setter(token)
@@ -117,8 +118,21 @@ func (h *APIHandler) LoginAnonymous(ctx context.Context) (*hakoniwa.AuthStatus, 
 	}, nil
 }
 
+// GetConfiguration implements getConfiguration operation.
+// GET /configuration
+func (h *APIHandler) GetConfiguration(ctx context.Context) (*hakoniwa.Configuration, error) {
+	return &hakoniwa.Configuration{
+		Title:             config.Title(),
+		Message:           config.Message(),
+		LogoURL:           config.LogoURL(),
+		TermsOfServiceURL: hakoniwa.NewOptString(config.TermsOfServiceURL()),
+		PrivacyPolicyURL:  hakoniwa.NewOptString(config.PrivacyPolicyURL()),
+	}, nil
+}
+
 // CookieSetterKey is used to inject a callback to set cookies
 type cookieSetterKey struct{}
+
 var CookieSetterKey = cookieSetterKey{}
 
 func WithCookieSetter(ctx context.Context, setter func(token string)) context.Context {

@@ -33,6 +33,21 @@ type config struct {
 
 	// PodTemplatePath is the path to the pod template file.
 	PodTemplatePath string `envconfig:"POD_TEMPLATE_PATH" default:""`
+
+	// Title is the application title.
+	Title string `envconfig:"TITLE" default:"Hakoniwa"`
+
+	// Message is the welcome message displayed below the title.
+	Message string `envconfig:"MESSAGE" default:"On-Demand Cloud Desktop Environment"`
+
+	// LogoURL is the URL to the application logo.
+	LogoURL string `envconfig:"LOGO_URL" default:"/_hakoniwa/hakoniwa_logo.webp"`
+
+	// TermsOfServiceURL is the URL to the terms of service.
+	TermsOfServiceURL string `envconfig:"TERMS_OF_SERVICE_URL" default:""`
+
+	// PrivacyPolicyURL is the URL to the privacy policy.
+	PrivacyPolicyURL string `envconfig:"PRIVACY_POLICY_URL" default:""`
 }
 
 var conf config
@@ -103,4 +118,29 @@ func MaxPodCount() int {
 // PodTemplatePath returns the path to the pod template file.
 func PodTemplatePath() string {
 	return conf.PodTemplatePath
+}
+
+// Title returns the application title.
+func Title() string {
+	return conf.Title
+}
+
+// Message returns the welcome message.
+func Message() string {
+	return conf.Message
+}
+
+// LogoURL returns the URL to the application logo.
+func LogoURL() string {
+	return conf.LogoURL
+}
+
+// TermsOfServiceURL returns the URL to the terms of service.
+func TermsOfServiceURL() string {
+	return conf.TermsOfServiceURL
+}
+
+// PrivacyPolicyURL returns the URL to the privacy policy.
+func PrivacyPolicyURL() string {
+	return conf.PrivacyPolicyURL
 }

@@ -30,9 +30,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthStatus'
+  /configuration:
+    get:
+      summary: Get application configuration
+      operationId: getConfiguration
+      responses:
+        '200':
+          description: Application configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Configuration'
 
 components:
   schemas:
+    Configuration:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Application title
+        message:
+          type: string
+          description: Welcome message
+        logo_url:
+          type: string
+          description: URL to the application logo
+        terms_of_service_url:
+          type: string
+          description: URL to the terms of service
+        privacy_policy_url:
+          type: string
+          description: URL to the privacy policy
+      required:
+        - title
+        - message
+        - logo_url
     AuthStatus:
       type: object
       properties:
