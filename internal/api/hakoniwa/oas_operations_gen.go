@@ -9,4 +9,6 @@ const (
 	GetAuthMeOperation        OperationName = "GetAuthMe"
 	GetConfigurationOperation OperationName = "GetConfiguration"
 	LoginAnonymousOperation   OperationName = "LoginAnonymous"
+	OidcAuthorizeOperation    OperationName = "OidcAuthorize"
+	OidcCallbackOperation     OperationName = "OidcCallback"
 )

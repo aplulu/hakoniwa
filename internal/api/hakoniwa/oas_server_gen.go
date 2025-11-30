@@ -26,6 +26,18 @@ type Handler interface {
 	//
 	// POST /auth/anonymous
 	LoginAnonymous(ctx context.Context) (*AuthStatus, error)
+	// OidcAuthorize implements oidcAuthorize operation.
+	//
+	// Redirect to OIDC provider.
+	//
+	// GET /auth/oidc/authorize
+	OidcAuthorize(ctx context.Context) (*OidcAuthorizeFound, error)
+	// OidcCallback implements oidcCallback operation.
+	//
+	// Process OIDC callback from IdP.
+	//
+	// GET /auth/oidc/callback
+	OidcCallback(ctx context.Context, params OidcCallbackParams) (*OidcCallbackFound, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

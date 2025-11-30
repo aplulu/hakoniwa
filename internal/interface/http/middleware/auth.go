@@ -3,7 +3,9 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"time"
 
+	"github.com/aplulu/hakoniwa/internal/config"
 	"github.com/aplulu/hakoniwa/internal/domain/model"
 	"github.com/aplulu/hakoniwa/internal/usecase"
 )
@@ -33,12 +35,24 @@ func (m *AuthMiddleware) Handle(next http.Handler) http.Handler {
 			return
 		}
 
-		user, err := m.authUsecase.VerifySession(r.Context(), cookie.Value)
+		user, newToken, err := m.authUsecase.VerifySession(r.Context(), cookie.Value)
 		if err != nil {
 			// Invalid session, proceed without user
 			// Optionally clear cookie here?
 			next.ServeHTTP(w, r)
 			return
+		}
+
+		// If a new token was issued (sliding session), set it in the cookie
+		if newToken != "" {
+			http.SetCookie(w, &http.Cookie{
+				Name:     "hakoniwa_session",
+				Value:    newToken,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+				Expires:  time.Now().Add(config.SessionExpiration()),
+			})
 		}
 
 		ctx := context.WithValue(r.Context(), UserContextKey, user)

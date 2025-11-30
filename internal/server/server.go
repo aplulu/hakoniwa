@@ -60,7 +60,24 @@ func StartServer(log *slog.Logger, staticDir string) error {
 	go cleaner.Start(ctx)
 
 	// Usecase
-	authUsecase := usecase.NewAuthInteractor()
+	authUsecase, err := usecase.NewAuthInteractor()
+	if err != nil {
+		// Log error but continue? Or fail?
+		// If OIDC is enabled but fails, we should probably fail or warn.
+		// Prompt says "settings are loaded from config".
+		// If OIDC is misconfigured, it's better to know early.
+		// However, if user wants to run without OIDC but config is messy?
+		// Let's log error and if OIDC was strictly required (enabled=true), maybe exit?
+		// But NewAuthInteractor only returns error if OIDCEnabled and NewProvider fails.
+		// So we should treat it as fatal if we intend to support OIDC.
+		if config.OIDCEnabled() {
+			return fmt.Errorf("server.StartServer: failed to initialize auth usecase: %w", err)
+		}
+		// If not enabled, maybe it returns nil error? Yes.
+		// But NewAuthInteractor only returns error if OIDCEnabled is true.
+		// So safe to return error.
+		return fmt.Errorf("server.StartServer: failed to initialize auth usecase: %w", err)
+	}
 	instanceUsecase := usecase.NewInstanceInteractor(instanceRepository, k8sClient)
 
 	// Handlers

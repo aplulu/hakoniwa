@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aplulu/hakoniwa/internal/config"
 	"github.com/aplulu/hakoniwa/internal/domain/model"
 	"github.com/aplulu/hakoniwa/internal/interface/http/middleware"
 	"github.com/aplulu/hakoniwa/internal/usecase"
@@ -50,8 +51,8 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Value:    token,
 				Path:     "/",
 				HttpOnly: true,
-				SameSite: http.SameSiteStrictMode,
-				Expires:  time.Now().Add(24 * time.Hour), // TODO: Configurable
+				SameSite: http.SameSiteLaxMode,
+				Expires:  time.Now().Add(config.SessionExpiration()),
 			})
 		})
 

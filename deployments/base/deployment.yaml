@@ -41,6 +41,8 @@ spec:
               value: "On-Demand Cloud Desktop Environment"
             - name: POD_TEMPLATE_PATH
               value: "/etc/hakoniwa/pod_template.yaml"
+            - name: JWT_SECRET
+              value: "CHANGE_ME_AND_PLEASE_USE_KUBERNETES_SECRET_MANAGEMENT"
             - name: KUBERNETES_NAMESPACE
               valueFrom:
                 fieldRef:

@@ -112,6 +112,60 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 
+				case 'o': // Prefix: "oidc/"
+
+					if l := len("oidc/"); len(elem) >= l && elem[0:l] == "oidc/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case 'a': // Prefix: "authorize"
+
+						if l := len("authorize"); len(elem) >= l && elem[0:l] == "authorize" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "GET":
+								s.handleOidcAuthorizeRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "GET")
+							}
+
+							return
+						}
+
+					case 'c': // Prefix: "callback"
+
+						if l := len("callback"); len(elem) >= l && elem[0:l] == "callback" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "GET":
+								s.handleOidcCallbackRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "GET")
+							}
+
+							return
+						}
+
+					}
+
 				}
 
 			case 'c': // Prefix: "configuration"
@@ -294,6 +348,70 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						default:
 							return
 						}
+					}
+
+				case 'o': // Prefix: "oidc/"
+
+					if l := len("oidc/"); len(elem) >= l && elem[0:l] == "oidc/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case 'a': // Prefix: "authorize"
+
+						if l := len("authorize"); len(elem) >= l && elem[0:l] == "authorize" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "GET":
+								r.name = OidcAuthorizeOperation
+								r.summary = "Redirect to OIDC provider"
+								r.operationID = "oidcAuthorize"
+								r.operationGroup = ""
+								r.pathPattern = "/auth/oidc/authorize"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+
+					case 'c': // Prefix: "callback"
+
+						if l := len("callback"); len(elem) >= l && elem[0:l] == "callback" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "GET":
+								r.name = OidcCallbackOperation
+								r.summary = "Process OIDC callback from IdP"
+								r.operationID = "oidcCallback"
+								r.operationGroup = ""
+								r.pathPattern = "/auth/oidc/callback"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+
 					}
 
 				}

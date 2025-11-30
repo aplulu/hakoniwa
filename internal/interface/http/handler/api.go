@@ -118,6 +118,57 @@ func (h *APIHandler) LoginAnonymous(ctx context.Context) (*hakoniwa.AuthStatus, 
 	}, nil
 }
 
+// OidcAuthorize implements oidcAuthorize operation.
+// GET /auth/oidc/authorize
+func (h *APIHandler) OidcAuthorize(ctx context.Context) (*hakoniwa.OidcAuthorizeFound, error) {
+	url, err := h.authUsecase.LoginOIDC(ctx, config.OIDCRedirectURL())
+	if err != nil {
+		return nil, err
+	}
+	return &hakoniwa.OidcAuthorizeFound{
+		Location: url,
+	}, nil
+}
+
+// OidcCallback implements oidcCallback operation.
+// GET /auth/oidc/callback
+func (h *APIHandler) OidcCallback(ctx context.Context, params hakoniwa.OidcCallbackParams) (*hakoniwa.OidcCallbackFound, error) {
+	// Handle IdP errors
+	if params.Error.IsSet() {
+		h.instanceUsecase.GetInstanceStatus(ctx, "") // dummy call to avoid unused error? No, just log.
+		// Redirect to frontend with error
+		return &hakoniwa.OidcCallbackFound{
+			Location: "/?error=" + params.Error.Value,
+		}, nil
+	}
+
+	// Use configured redirect URI
+	redirectURI := config.OIDCRedirectURL()
+
+	token, user, err := h.authUsecase.CallbackOIDC(ctx, params.Code, params.State, redirectURI)
+	if err != nil {
+		// Redirect to frontend with error
+		// In production, might want to encrypt or map error details
+		return &hakoniwa.OidcCallbackFound{
+			Location: "/?error=login_failed",
+		}, nil
+	}
+
+	// Set session cookie
+	if setter, ok := ctx.Value(CookieSetterKey).(func(string)); ok {
+		setter(token)
+	}
+
+	// Start instance creation
+	// We ignore errors here as the user can check status on the dashboard
+	_ = h.instanceUsecase.CreateInstance(ctx, user.ID)
+
+	// Redirect to dashboard
+	return &hakoniwa.OidcCallbackFound{
+		Location: "/",
+	}, nil
+}
+
 // GetConfiguration implements getConfiguration operation.
 // GET /configuration
 func (h *APIHandler) GetConfiguration(ctx context.Context) (*hakoniwa.Configuration, error) {
@@ -127,6 +178,9 @@ func (h *APIHandler) GetConfiguration(ctx context.Context) (*hakoniwa.Configurat
 		LogoURL:           config.LogoURL(),
 		TermsOfServiceURL: hakoniwa.NewOptString(config.TermsOfServiceURL()),
 		PrivacyPolicyURL:  hakoniwa.NewOptString(config.PrivacyPolicyURL()),
+		AuthMethods:       config.AuthMethodsList(),
+		OidcName:          hakoniwa.NewOptString(config.OIDCName()),
+		AuthAutoLogin:     config.AuthAutoLogin(),
 	}, nil
 }
 

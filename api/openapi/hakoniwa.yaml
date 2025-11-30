@@ -30,6 +30,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthStatus'
+  /auth/oidc/authorize:
+    get:
+      summary: Redirect to OIDC provider
+      operationId: oidcAuthorize
+      responses:
+        '302':
+          description: Redirect to OIDC provider
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL to redirect to
+              required: true
+  /auth/oidc/callback:
+    get:
+      summary: Process OIDC callback from IdP
+      operationId: oidcCallback
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+          required: true
+        - name: state
+          in: query
+          schema:
+            type: string
+          required: true
+        - name: error
+          in: query
+          schema:
+            type: string
+          required: false
+          description: Error code from IdP
+        - name: error_description
+          in: query
+          schema:
+            type: string
+          required: false
+          description: Error description from IdP
+      responses:
+        '302':
+          description: Redirect to frontend
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL to redirect to
+              required: true
   /configuration:
     get:
       summary: Get application configuration
@@ -62,10 +111,25 @@ components:
         privacy_policy_url:
           type: string
           description: URL to the privacy policy
+        auth_methods:
+          type: array
+          items:
+            type: string
+          description: List of enabled authentication methods (e.g. 'anonymous', 'oidc')
+        oidc_name:
+          type: string
+          description: Display name for the OIDC login button
+          default: OpenID Connect
+        auth_auto_login:
+          type: boolean
+          description: Whether to automatically log in if only one auth method is available
+          default: false
       required:
         - title
         - message
         - logo_url
+        - auth_methods
+        - auth_auto_login
     AuthStatus:
       type: object
       properties:

@@ -39,3 +39,21 @@ func (UnimplementedHandler) GetConfiguration(ctx context.Context) (r *Configurat
 func (UnimplementedHandler) LoginAnonymous(ctx context.Context) (r *AuthStatus, _ error) {
 	return r, ht.ErrNotImplemented
 }
+
+// OidcAuthorize implements oidcAuthorize operation.
+//
+// Redirect to OIDC provider.
+//
+// GET /auth/oidc/authorize
+func (UnimplementedHandler) OidcAuthorize(ctx context.Context) (r *OidcAuthorizeFound, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// OidcCallback implements oidcCallback operation.
+//
+// Process OIDC callback from IdP.
+//
+// GET /auth/oidc/callback
+func (UnimplementedHandler) OidcCallback(ctx context.Context, params OidcCallbackParams) (r *OidcCallbackFound, _ error) {
+	return r, ht.ErrNotImplemented
+}
