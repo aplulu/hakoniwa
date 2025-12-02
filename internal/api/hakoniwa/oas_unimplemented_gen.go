@@ -13,9 +13,27 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// CreateInstance implements createInstance operation.
+//
+// Create a new instance.
+//
+// POST /instances
+func (UnimplementedHandler) CreateInstance(ctx context.Context, req *CreateInstanceRequest) (r CreateInstanceRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DeleteInstance implements deleteInstance operation.
+//
+// Delete an instance.
+//
+// DELETE /instances/{instanceId}
+func (UnimplementedHandler) DeleteInstance(ctx context.Context, params DeleteInstanceParams) (r DeleteInstanceRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetAuthMe implements getAuthMe operation.
 //
-// Get current user and instance status.
+// Get current user status.
 //
 // GET /auth/me
 func (UnimplementedHandler) GetAuthMe(ctx context.Context) (r GetAuthMeRes, _ error) {
@@ -31,13 +49,40 @@ func (UnimplementedHandler) GetConfiguration(ctx context.Context) (r *Configurat
 	return r, ht.ErrNotImplemented
 }
 
+// ListInstanceTypes implements listInstanceTypes operation.
+//
+// List available instance types.
+//
+// GET /instance-types
+func (UnimplementedHandler) ListInstanceTypes(ctx context.Context) (r []InstanceType, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListInstances implements listInstances operation.
+//
+// List user instances.
+//
+// GET /instances
+func (UnimplementedHandler) ListInstances(ctx context.Context) (r []Instance, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // LoginAnonymous implements loginAnonymous operation.
 //
-// Login anonymously (creates session and instance).
+// Login anonymously (creates session only).
 //
 // POST /auth/anonymous
 func (UnimplementedHandler) LoginAnonymous(ctx context.Context) (r *AuthStatus, _ error) {
 	return r, ht.ErrNotImplemented
+}
+
+// Logout implements logout operation.
+//
+// Logout.
+//
+// POST /auth/logout
+func (UnimplementedHandler) Logout(ctx context.Context) error {
+	return ht.ErrNotImplemented
 }
 
 // OidcAuthorize implements oidcAuthorize operation.

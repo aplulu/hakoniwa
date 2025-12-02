@@ -6,9 +6,14 @@ package hakoniwa
 type OperationName = string
 
 const (
-	GetAuthMeOperation        OperationName = "GetAuthMe"
-	GetConfigurationOperation OperationName = "GetConfiguration"
-	LoginAnonymousOperation   OperationName = "LoginAnonymous"
-	OidcAuthorizeOperation    OperationName = "OidcAuthorize"
-	OidcCallbackOperation     OperationName = "OidcCallback"
+	CreateInstanceOperation    OperationName = "CreateInstance"
+	DeleteInstanceOperation    OperationName = "DeleteInstance"
+	GetAuthMeOperation         OperationName = "GetAuthMe"
+	GetConfigurationOperation  OperationName = "GetConfiguration"
+	ListInstanceTypesOperation OperationName = "ListInstanceTypes"
+	ListInstancesOperation     OperationName = "ListInstances"
+	LoginAnonymousOperation    OperationName = "LoginAnonymous"
+	LogoutOperation            OperationName = "Logout"
+	OidcAuthorizeOperation     OperationName = "OidcAuthorize"
+	OidcCallbackOperation      OperationName = "OidcCallback"
 )

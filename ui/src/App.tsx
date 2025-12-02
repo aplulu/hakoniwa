@@ -1,42 +1,28 @@
 import { useEffect, useState, useCallback } from 'react';
 import useSWR, { mutate } from 'swr';
-import { useTranslation, Trans } from 'react-i18next';
-import { Loader2, AlertCircle, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
-  Button,
-  Card,
   Flex,
   Text,
   Heading,
   Box,
-  Link as RadixLink,
+  Grid,
+  Container,
+  Theme,
 } from '@radix-ui/themes';
+import { AlertCircle } from 'lucide-react';
 
-type InstanceStatus = 'pending' | 'running' | 'terminating';
+// Types
+import type { AuthStatus, Configuration, Instance, InstanceType } from './types';
 
-interface User {
-  id: string;
-  type: 'openid_connect' | 'anonymous';
-}
-
-interface AuthStatus {
-  user: User;
-  instance?: {
-    status: InstanceStatus;
-    pod_ip?: string;
-  };
-}
-
-interface Configuration {
-  title: string;
-  message: string;
-  logo_url: string;
-  terms_of_service_url?: string;
-  privacy_policy_url?: string;
-  auth_methods: string[];
-  oidc_name: string;
-  auth_auto_login: boolean;
-}
+// Components
+import { LoadingScreen } from './components/common/LoadingScreen';
+import { ErrorScreen } from './components/common/ErrorScreen';
+import { LoginView } from './components/auth/LoginView';
+import { Header } from './components/layout/Header';
+import { InstanceCard } from './components/dashboard/InstanceCard';
+import { CreateInstanceCard } from './components/dashboard/CreateInstanceCard';
+import { CreateInstanceView } from './components/dashboard/CreateInstanceView';
 
 const fetcher = (url: string) =>
   fetch(url).then(async (res) => {
@@ -47,8 +33,9 @@ const fetcher = (url: string) =>
 
 function App() {
   const { t } = useTranslation();
-  const [shouldPoll, setShouldPoll] = useState(false);
   const [authError, setAuthError] = useState<string>('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [view, setView] = useState<'dashboard' | 'create'>('dashboard');
 
   // Configuration
   const { data: config } = useSWR<Configuration>(
@@ -67,12 +54,11 @@ function App() {
   const {
     data: authData,
     error: swrAuthError,
-    isLoading,
+    isLoading: isAuthLoading,
   } = useSWR<AuthStatus | null>(
     '/_hakoniwa/api/auth/me', 
     fetcher,
     {
-      refreshInterval: shouldPoll ? 3000 : 0,
       onError: (err) => {
         console.error(err);
         setAuthError(t('error.connection_failed'));
@@ -80,7 +66,66 @@ function App() {
     }
   );
 
-  const instanceStatus = authData?.instance?.status;
+  // Instances
+  const {
+    data: instances,
+    error: instancesError,
+    isLoading: isInstancesLoading,
+  } = useSWR<Instance[]>(
+    authData && view === 'dashboard' ? '/_hakoniwa/api/instances' : null,
+    fetcher,
+    {
+      refreshInterval: 3000,
+    }
+  );
+
+  // Instance Types
+  const {
+    data: instanceTypes,
+  } = useSWR<InstanceType[]>(
+    authData ? '/_hakoniwa/api/instance-types' : null,
+    fetcher
+  );
+
+  // Create Instance Action
+  const createInstance = useCallback(async (typeId: string) => {
+    setIsCreating(true);
+    setAuthError('');
+    try {
+      const res = await fetch('/_hakoniwa/api/instances', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: typeId }),
+      });
+      if (res.status === 503) {
+        throw new Error(t('error.max_instances'));
+      }
+      if (!res.ok) throw new Error('Failed to create instance');
+      await mutate('/_hakoniwa/api/instances');
+      setView('dashboard');
+    } catch (err: any) {
+      console.error(err);
+      setAuthError(err.message || t('error.generic_desc'));
+    } finally {
+      setIsCreating(false);
+    }
+  }, [t]);
+
+  // Delete Instance Action
+  const deleteInstance = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/_hakoniwa/api/instances/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete instance');
+      await mutate('/_hakoniwa/api/instances');
+    } catch (err: any) {
+      console.error(err);
+      // Optionally show error
+    }
+  }, []);
 
   // Login Anonymous Action
   const loginAnonymous = useCallback(async () => {
@@ -98,9 +143,25 @@ function App() {
     }
   }, [t]);
 
+  // Logout Action
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/_hakoniwa/api/auth/logout', {
+        method: 'POST',
+      });
+      // Clear client-side cookies just in case, though backend should handle it
+      document.cookie = 'hakoniwa_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      document.cookie = 'hakoniwa_instance_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      window.location.reload();
+    } catch (err) {
+      console.error('Logout failed', err);
+      window.location.reload();
+    }
+  }, []);
+
   // Auto Login Check
   useEffect(() => {
-    if (isLoading || !config || !config.auth_auto_login || authError || authData) return;
+    if (isAuthLoading || !config || !config.auth_auto_login || authError || authData) return;
     
     // Don't skip if we are already in an error state from URL
     if (new URLSearchParams(window.location.search).get('error')) return;
@@ -114,7 +175,7 @@ function App() {
         loginAnonymous();
       }
     }
-  }, [isLoading, config, authError, authData, loginAnonymous]);
+  }, [isAuthLoading, config, authError, authData, loginAnonymous]);
 
   // Check for errors in URL (redirected from backend)
   useEffect(() => {
@@ -128,264 +189,91 @@ function App() {
     }
   }, [t]);
 
-  useEffect(() => {
-    if (swrAuthError) return;
+  const isLoading = isAuthLoading || (authData && isInstancesLoading && view === 'dashboard');
 
-    if (instanceStatus === 'running') {
-      window.location.reload();
-      return;
-    }
-
-    if (instanceStatus === 'pending' || instanceStatus === 'terminating') {
-      setShouldPoll(true);
-    } else {
-      setShouldPoll(false);
-    }
-  }, [instanceStatus, swrAuthError]);
-
-  // Determine UI State
-  if (isLoading && !authData && !authError) {
-    return (
-      <Flex align="center" justify="center" style={{ minHeight: '100vh' }}>
-        <Flex direction="column" align="center" gap="4">
-          <Loader2
-            className="animate-spin"
-            size={40}
-            style={{ color: 'var(--gray-10)' }}
-          />
-          <Text color="gray">
-            {t('status.connecting', { title: config?.title || 'Hakoniwa' })}
-          </Text>
-        </Flex>
-      </Flex>
-    );
+  // 1. Loading State
+  if (isLoading && !authError) {
+    return <LoadingScreen title={config?.title} />;
   }
 
-  if (
-    shouldPoll ||
-    (authData?.instance && authData.instance.status !== 'running')
-  ) {
+  // 2. Authenticated View
+  if (authData) {
     return (
-      <Flex
-        align="center"
-        justify="center"
-        style={{ minHeight: '100vh' }}
-        p="4">
-        <Card size="3" style={{ width: '100%', maxWidth: 400 }}>
-          <Flex direction="column" gap="5" align="center" py="4">
-            <Box>
-              <Heading size="5" align="center">
-                {t('status.preparing')}
-              </Heading>
-              <Text color="gray" size="2" align="center" as="p">
-                {t('status.spinning_up')}
-              </Text>
-            </Box>
+      <Theme accentColor="indigo" grayColor="slate" radius="large">
+        <Box style={{ 
+          minHeight: '100vh', 
+          backgroundColor: 'var(--gray-2)',
+          backgroundImage: 'radial-gradient(circle at 50% 0, var(--indigo-3), transparent 50%)'
+        }}>
+          <Header config={config} user={authData.user} onLogout={logout} />
 
-            <Loader2
-              className="animate-spin"
-              size={64}
-              style={{ color: 'var(--accent-9)' }}
-            />
+          {/* Main Content */}
+          <Container size="4" p="4" pt="8">
+            {instancesError && (
+               <Box mb="4" p="3" style={{ background: 'var(--red-3)', borderRadius: 'var(--radius-2)' }}>
+                  <Flex gap="2" align="center">
+                    <AlertCircle size={16} color="var(--red-11)" />
+                    <Text color="red" size="2" weight="medium">{t('error.generic_desc')}</Text>
+                  </Flex>
+               </Box>
+            )}
+            {view === 'dashboard' ? (
+              <Flex direction="column" gap="6">
+                <Flex justify="between" align="end">
+                   <Box>
+                     <Heading size="8" mb="2" style={{ fontWeight: 900, letterSpacing: '-0.03em' }}>{t('dashboard.title')}</Heading>
+                     <Text size="3" color="gray">{t('dashboard.subtitle')}</Text>
+                   </Box>
+                </Flex>
+                
+                <Grid columns={{ initial: '1', sm: '2', lg: '3', xl: '4' }} gap="6">
+                  {/* Instance Cards */}
+                  {instances?.map((inst, index) => {
+                    const typeInfo = instanceTypes?.find(t => t.id === inst.type);
+                    return (
+                      <InstanceCard 
+                        key={inst.id}
+                        instance={inst}
+                        typeInfo={typeInfo}
+                        index={index}
+                        onDelete={deleteInstance}
+                        onOpen={(id) => {
+                           document.cookie = `hakoniwa_instance_id=${id}; path=/`;
+                           window.location.href = '/';
+                        }}
+                      />
+                    );
+                  })}
 
-            <Text size="2" color="gray">
-              {t('status.label')}{' '}
-              <Text weight="bold" highContrast>
-                {instanceStatus || t('status.unknown')}
-              </Text>
-            </Text>
-          </Flex>
-        </Card>
-      </Flex>
+                  {/* Create New Card Button */}
+                  <CreateInstanceCard 
+                    delayIndex={instances?.length || 0} 
+                    onClick={() => setView('create')} 
+                  />
+                </Grid>
+              </Flex>
+            ) : (
+              /* Create Workspace Screen */
+              <CreateInstanceView
+                instanceTypes={instanceTypes}
+                isCreating={isCreating}
+                error={authError}
+                onBack={() => setView('dashboard')}
+                onCreate={createInstance}
+              />
+            )}
+          </Container>
+        </Box>
+      </Theme>
     );
   }
 
   if (authError || swrAuthError) {
-    return (
-      <Flex
-        align="center"
-        justify="center"
-        style={{ minHeight: '100vh' }}
-        p="4">
-        <Card size="3" style={{ width: '100%', maxWidth: 400 }}>
-          <Flex gap="4" direction="column">
-            <Flex gap="2" align="center">
-              <AlertCircle color="var(--red-9)" />
-              <Heading size="4" color="red">
-                {t('error.title')}
-              </Heading>
-            </Flex>
-            <Text size="2" color="gray">
-              {t('error.generic_desc')}
-            </Text>
-
-            <Box
-              p="3"
-              style={{
-                background: 'var(--gray-3)',
-                borderRadius: 'var(--radius-2)',
-              }}>
-              <Text size="2" color="red">
-                {authError || t('error.connection_failed')}
-              </Text>
-            </Box>
-
-            <Button
-              color="red"
-              variant="soft"
-              onClick={() => window.location.reload()}
-              style={{ width: '100%' }}>
-              {t('action.retry')}
-            </Button>
-          </Flex>
-        </Card>
-      </Flex>
-    );
+    return <ErrorScreen error={authError} onRetry={() => window.location.reload()} />;
   }
 
-  // Idle state (Not logged in)
-  return (
-    <Flex
-      align="center"
-      justify="center"
-      style={{
-        minHeight: '100vh',
-        background:
-          'linear-gradient(to bottom right, var(--blue-9), var(--purple-9))',
-      }}
-      p="4">
-      <Card
-        size="4"
-        style={{
-          width: '100%',
-          maxWidth: 480,
-          boxShadow:
-            '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-        }}>
-        <Flex direction="column" gap="6" py="2">
-          <Flex direction="column" align="center" gap="4">
-            <Box
-              style={{
-                width: '120px',
-                height: '120px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-              <img
-                src={config?.logo_url || '/_hakoniwa/hakoniwa_logo.webp'}
-                alt="Logo"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  objectFit: 'contain',
-                }}
-              />
-            </Box>
-            <Box>
-              <Heading size="8" align="center" style={{ marginBottom: '8px' }}>
-                {config?.title || 'Hakoniwa'}
-              </Heading>
-              {config?.message && (
-                <Text size="4" color="gray" align="center" as="p">
-                  {config?.message}
-                </Text>
-              )}
-            </Box>
-          </Flex>
-
-          <Flex direction="column" gap="3" mt="2">
-            {config?.auth_methods.includes('oidc') && (
-              <Button
-                size="3"
-                onClick={() => {
-                  window.location.href = '/_hakoniwa/api/auth/oidc/authorize';
-                }}
-                style={{ height: '48px', fontSize: '16px', cursor: 'pointer' }}
-                className="login-button">
-                {t('login.oidc_button', {
-                  name: config?.oidc_name || 'OpenID Connect',
-                })}
-                <ArrowRight className="login-button-arrow" />
-              </Button>
-            )}
-
-            {config?.auth_methods.includes('oidc') &&
-              config?.auth_methods.includes('anonymous') && (
-                <Flex align="center" gap="2">
-                  <Box
-                    style={{ flex: 1, height: 1, background: 'var(--gray-5)' }}
-                  />
-                  <Text
-                    size="1"
-                    color="gray"
-                    style={{ textTransform: 'uppercase' }}>
-                    {t('login.or_continue')}
-                  </Text>
-                  <Box
-                    style={{ flex: 1, height: 1, background: 'var(--gray-5)' }}
-                  />
-                </Flex>
-              )}
-
-            {config?.auth_methods.includes('anonymous') && (
-                          <Button
-                            size="3"
-                            onClick={loginAnonymous}
-                            style={{ height: '48px', fontSize: '16px', cursor: 'pointer' }}
-                            className="login-button">
-                            {t('login.anonymous_button')}
-                            <ArrowRight className="login-button-arrow" />
-                          </Button>            )}
-          </Flex>
-
-          {(config?.terms_of_service_url || config?.privacy_policy_url) && (
-            <Text size="1" color="gray" align="center" mt="2">
-              {config.terms_of_service_url && config.privacy_policy_url ? (
-                <Trans
-                  i18nKey="legal.agreement"
-                  components={[
-                    <RadixLink
-                      href={config.terms_of_service_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    />,
-                    <RadixLink
-                      href={config.privacy_policy_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    />,
-                  ]}
-                />
-              ) : config.terms_of_service_url ? (
-                <Trans
-                  i18nKey="legal.agreement_tos_only"
-                  components={[
-                    <RadixLink
-                      href={config.terms_of_service_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    />,
-                  ]}
-                />
-              ) : config.privacy_policy_url ? (
-                <Trans
-                  i18nKey="legal.agreement_privacy_only"
-                  components={[
-                    <RadixLink
-                      href={config.privacy_policy_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    />,
-                  ]}
-                />
-              ) : null}
-            </Text>
-          )}
-        </Flex>
-      </Card>
-    </Flex>
-  );
+  // 3. Login View (Unauthenticated)
+  return <LoginView config={config} onLoginAnonymous={loginAnonymous} />;
 }
 
 export default App;

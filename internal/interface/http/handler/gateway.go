@@ -44,7 +44,7 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 1. API Handling
 	if strings.HasPrefix(path, "/_hakoniwa/api") {
-		// Wrap with CookieSetter for LoginAnonymous
+		// Wrap with CookieSetter/Clearer
 		ctx := WithCookieSetter(r.Context(), func(token string) {
 			http.SetCookie(w, &http.Cookie{
 				Name:     "hakoniwa_session",
@@ -55,6 +55,24 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Expires:  time.Now().Add(config.SessionExpiration()),
 			})
 		})
+		ctx = WithCookieClearer(ctx, func() {
+			// Clear Session
+			http.SetCookie(w, &http.Cookie{
+				Name:     "hakoniwa_session",
+				Value:    "",
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+				Expires:  time.Unix(0, 0),
+			})
+			// Clear Instance Cookie
+			http.SetCookie(w, &http.Cookie{
+				Name:     "hakoniwa_instance_id",
+				Value:    "",
+				Path:     "/",
+				Expires:  time.Unix(0, 0),
+			})
+		})
 
 		http.StripPrefix("/_hakoniwa/api", h.apiServer).ServeHTTP(w, r.WithContext(ctx))
 		return
@@ -63,9 +81,6 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 2. Static Assets Handling (always allow access to assets)
 	if strings.HasPrefix(path, "/_hakoniwa/") {
 		// Serve static files (assets)
-		// Strip prefix so that /_hakoniwa/assets/foo.js -> /assets/foo.js in file server
-		// Note: Vite base is /_hakoniwa/, so requests will come as /_hakoniwa/assets/...
-		// If we mount ui/dist at /, then we need to strip /_hakoniwa/
 		http.StripPrefix("/_hakoniwa/", h.staticHandler).ServeHTTP(w, r)
 		return
 	}
@@ -73,47 +88,60 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 3. Check Authentication
 	user, ok := middleware.GetUserFromContext(r.Context())
 	if !ok {
-		// Not authenticated -> Serve Login Screen (React index.html)
-		// React router should handle /login route if exists, but here we serve the main entry point
-		h.serveReactApp(w, r)
+		h.redirectToDashboard(w, r)
 		return
 	}
 
-	// 4. Pod Routing Logic
-	// Authenticated -> Check Instance Status
-	instance, err := h.instanceUsecase.GetInstanceStatus(r.Context(), user.ID)
-	if err != nil {
-		h.logger.Error("Failed to get instance status", "user_id", user.ID, "error", err)
-		h.serveReactApp(w, r) // Show error/loading in React
+	// 4. Instance Routing Logic (Cookie-based)
+	
+	// Explicit Dashboard Access -> Clear Instance Cookie
+	if path == "/_hakoniwa/dashboard" {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "hakoniwa_instance_id",
+			Value:    "",
+			Path:     "/",
+			Expires:  time.Unix(0, 0),
+			HttpOnly: false, // Allow JS to read if needed? Or keep secure. JS needs to Set it, so not HttpOnly? 
+			// Actually, if we set it via JS in frontend, this backend handler might overwrite it?
+			// Let's assume Frontend sets it to "activate". Backend clears it to "deactivate".
+		})
+		h.redirectToDashboard(w, r)
 		return
 	}
 
-	if instance != nil && instance.Status == model.InstanceStatusRunning && instance.PodIP != "" {
-		// Proxy to Pod
-		h.proxyHandler.Proxy(user.ID, instance.PodIP, w, r)
-		return
+	// Check for Active Instance Cookie
+	cookie, err := r.Cookie("hakoniwa_instance_id")
+	if err == nil && cookie.Value != "" {
+		instanceID := cookie.Value
+		instance, err := h.instanceUsecase.GetInstance(r.Context(), instanceID)
+		if err != nil {
+			h.logger.Error("Failed to get instance from cookie", "id", instanceID, "error", err)
+			// Fallthrough to dashboard
+		} else if instance != nil && instance.UserID == user.ID {
+			if instance.Status == model.InstanceStatusRunning && instance.PodIP != "" {
+				// Get Port
+				it, ok := config.GetInstanceType(instance.Type)
+				port := "3000"
+				if ok && it.TargetPort != "" {
+					port = it.TargetPort
+				}
+				// Proxy to Pod
+				targetURL := "http://" + instance.PodIP + ":" + port
+				h.proxyHandler.Proxy(instance.InstanceID, targetURL, w, r)
+				return
+			}
+		}
 	}
 
-	// Instance not ready -> Serve Loading Screen (React index.html)
-	h.serveReactApp(w, r)
+	// 5. Dashboard (Default)
+	h.redirectToDashboard(w, r)
 }
 
-func (h *GatewayHandler) serveReactApp(w http.ResponseWriter, r *http.Request) {
+func (h *GatewayHandler) redirectToDashboard(w http.ResponseWriter, r *http.Request) {
 	// Set headers to prevent caching
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
 
-	// Serve index.html for SPA
-	// We can reuse staticHandler but we need to make sure it serves index.html for unknown paths?
-	// Or explicitly serve index.html
-	// Since staticHandler is a FileServer, it serves index.html if path is /
-	// But here we might be at any path.
-	// Ideally, we read index.html content and serve it.
-	// For simplicity, let's assume staticHandler points to ui/dist.
-	// We need to serve ui/dist/index.html.
-
-	// Re-constructing request to serve /index.html from static handler
-	r.URL.Path = "/"
-	h.staticHandler.ServeHTTP(w, r)
+	http.Redirect(w, r, "/_hakoniwa/", http.StatusFound)
 }

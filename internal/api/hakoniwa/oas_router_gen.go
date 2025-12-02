@@ -40,6 +40,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
+	args := [1]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -85,6 +86,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						switch r.Method {
 						case "POST":
 							s.handleLoginAnonymousRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "POST")
+						}
+
+						return
+					}
+
+				case 'l': // Prefix: "logout"
+
+					if l := len("logout"); len(elem) >= l && elem[0:l] == "logout" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleLogoutRequest([0]string{}, elemIsEscaped, w, r)
 						default:
 							s.notAllowed(w, r, "POST")
 						}
@@ -188,6 +209,94 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
+			case 'i': // Prefix: "instance"
+
+				if l := len("instance"); len(elem) >= l && elem[0:l] == "instance" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case '-': // Prefix: "-types"
+
+					if l := len("-types"); len(elem) >= l && elem[0:l] == "-types" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "GET":
+							s.handleListInstanceTypesRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "GET")
+						}
+
+						return
+					}
+
+				case 's': // Prefix: "s"
+
+					if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						switch r.Method {
+						case "GET":
+							s.handleListInstancesRequest([0]string{}, elemIsEscaped, w, r)
+						case "POST":
+							s.handleCreateInstanceRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "GET,POST")
+						}
+
+						return
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "instanceId"
+						// Leaf parameter, slashes are prohibited
+						idx := strings.IndexByte(elem, '/')
+						if idx >= 0 {
+							break
+						}
+						args[0] = elem
+						elem = ""
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "DELETE":
+								s.handleDeleteInstanceRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "DELETE")
+							}
+
+							return
+						}
+
+					}
+
+				}
+
 			}
 
 		}
@@ -203,7 +312,7 @@ type Route struct {
 	operationGroup string
 	pathPattern    string
 	count          int
-	args           [0]string
+	args           [1]string
 }
 
 // Name returns ogen operation name.
@@ -313,10 +422,35 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "POST":
 							r.name = LoginAnonymousOperation
-							r.summary = "Login anonymously (creates session and instance)"
+							r.summary = "Login anonymously (creates session only)"
 							r.operationID = "loginAnonymous"
 							r.operationGroup = ""
 							r.pathPattern = "/auth/anonymous"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
+				case 'l': // Prefix: "logout"
+
+					if l := len("logout"); len(elem) >= l && elem[0:l] == "logout" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = LogoutOperation
+							r.summary = "Logout"
+							r.operationID = "logout"
+							r.operationGroup = ""
+							r.pathPattern = "/auth/logout"
 							r.args = args
 							r.count = 0
 							return r, true
@@ -338,7 +472,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = GetAuthMeOperation
-							r.summary = "Get current user and instance status"
+							r.summary = "Get current user status"
 							r.operationID = "getAuthMe"
 							r.operationGroup = ""
 							r.pathPattern = "/auth/me"
@@ -439,6 +573,114 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					default:
 						return
 					}
+				}
+
+			case 'i': // Prefix: "instance"
+
+				if l := len("instance"); len(elem) >= l && elem[0:l] == "instance" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case '-': // Prefix: "-types"
+
+					if l := len("-types"); len(elem) >= l && elem[0:l] == "-types" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "GET":
+							r.name = ListInstanceTypesOperation
+							r.summary = "List available instance types"
+							r.operationID = "listInstanceTypes"
+							r.operationGroup = ""
+							r.pathPattern = "/instance-types"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
+				case 's': // Prefix: "s"
+
+					if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						switch method {
+						case "GET":
+							r.name = ListInstancesOperation
+							r.summary = "List user instances"
+							r.operationID = "listInstances"
+							r.operationGroup = ""
+							r.pathPattern = "/instances"
+							r.args = args
+							r.count = 0
+							return r, true
+						case "POST":
+							r.name = CreateInstanceOperation
+							r.summary = "Create a new instance"
+							r.operationID = "createInstance"
+							r.operationGroup = ""
+							r.pathPattern = "/instances"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "instanceId"
+						// Leaf parameter, slashes are prohibited
+						idx := strings.IndexByte(elem, '/')
+						if idx >= 0 {
+							break
+						}
+						args[0] = elem
+						elem = ""
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "DELETE":
+								r.name = DeleteInstanceOperation
+								r.summary = "Delete an instance"
+								r.operationID = "deleteInstance"
+								r.operationGroup = ""
+								r.pathPattern = "/instances/{instanceId}"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
+					}
+
 				}
 
 			}

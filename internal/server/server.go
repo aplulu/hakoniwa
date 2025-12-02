@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/aplulu/hakoniwa/internal/api/hakoniwa"
 	"github.com/aplulu/hakoniwa/internal/config"
@@ -33,31 +34,24 @@ func StartServer(log *slog.Logger, staticDir string) error {
 		return fmt.Errorf("server.StartServer: failed to create k8s client: %w", err)
 	}
 
-	// Sync instances from Kubernetes
-	log.Info("Syncing instances from Kubernetes...")
-	existingInstances, err := k8sClient.ListInstancePods(context.Background())
-	if err != nil {
-		log.Error("failed to sync instances from k8s", "error", err)
-	} else {
-		for _, instance := range existingInstances {
-			if err := instanceRepository.Save(context.Background(), instance); err != nil {
-				log.Error("failed to restore instance to repository", "user_id", instance.UserID, "error", err)
-			} else {
-				log.Info("Restored instance", "user_id", instance.UserID, "pod_name", instance.PodName)
-			}
-		}
-	}
-
 	// Background Workers
+	ctx, cancel := context.WithCancel(context.Background())
+	cleanerCancel = cancel
+
 	cleaner := background.NewInactivityCleaner(
 		instanceRepository,
 		k8sClient,
 		log,
 		config.InstanceInactivityTimeout(),
 	)
-	ctx, cancel := context.WithCancel(context.Background())
-	cleanerCancel = cancel
 	go cleaner.Start(ctx)
+
+	syncer := background.NewInstanceSyncer(
+		instanceRepository,
+		k8sClient,
+		log,
+	)
+	go syncer.Start(ctx, 5*time.Second)
 
 	// Usecase
 	authUsecase, err := usecase.NewAuthInteractor()
