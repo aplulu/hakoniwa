@@ -1,6 +1,6 @@
 # Hakoniwa (箱庭)
 
-<img src="https://raw.githubusercontent.com/aplulu/hakoniwa/main/ui/public/hakoniwa_logo.webp" width="200" alt="Hakoniwa Logo">
+<img src="https://raw.githubusercontent.com/aplulu/hakoniwa/main/ui/public/img/hakoniwa_logo.webp" width="200" alt="Hakoniwa Logo">
 
 Hakoniwa is an On-Demand Cloud Workspace Service running on Kubernetes. It dynamically provisions personalized cloud workspace environments (such as Webtop, Jupyter Notebook, or VS Code Server) for users and serves them through a unified web interface.
 
