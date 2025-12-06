@@ -2,20 +2,25 @@
 
 <img src="https://raw.githubusercontent.com/aplulu/hakoniwa/main/ui/public/hakoniwa_logo.webp" width="200" alt="Hakoniwa Logo">
 
-Hakoniwa is an On-Demand Desktop Environment service running on Kubernetes. It dynamically provisions lightweight desktop environments for users and serves them through a unified web interface.
+Hakoniwa is an On-Demand Cloud Workspace Service running on Kubernetes. It dynamically provisions personalized cloud workspace environments (such as Webtop, Jupyter Notebook, or VS Code Server) for users and serves them through a unified web interface.
 
 ## Features
 
-*   **On-Demand Provisioning:** Automatically creates a Kubernetes Pod running a desktop environment (XFCE via Webtop) when a user logs in.
-*   **Unified Gateway:** A custom Go proxy acts as the single entry point. It serves the React frontend for authentication/loading states and seamlessly switches to proxying traffic to the desktop instance once it's ready.
+*   **On-Demand Provisioning:** Automatically creates a Kubernetes Pod for a selected workspace type when a user requests it.
+*   **Multiple Instance Types:** Supports provisioning various workspace types (e.g., XFCE via Webtop, Jupyter Notebook, VS Code Server) from configurable Pod templates.
+*   **Unified Gateway:** A custom Go proxy acts as the single entry point. It serves the React frontend for authentication/dashboard and seamlessly switches to proxying traffic to a user-selected workspace instance. Workspace selection is managed via a cookie, allowing the upstream application to receive requests at its root path (`/`).
+*   **Multi-Instance Management:** Users can launch and manage multiple workspace instances of different types simultaneously.
 *   **Automatic Cleanup:** Background workers monitor inactivity and terminate unused instances to save resources.
-*   **Kubernetes Native:** Fully integrated with Kubernetes for pod management using `client-go`.
+*   **Periodic Synchronization:** A background syncer periodically reconciles the in-memory instance list with the actual state of Pods in Kubernetes, ensuring consistency and handling external changes (e.g., manual Pod deletion).
+*   **Kubernetes Native:** Fully integrated with Kubernetes for pod lifecycle management using `client-go`.
+*   **User Management:** Supports anonymous and OIDC authentication.
+*   **Instance Lifecycle:** Provides API and UI for creating, opening, and deleting workspace instances.
 
 ## Architecture
 
-*   **Frontend:** React (Vite + TypeScript + Radix UI Themes) - Handles authentication UI, status polling, and loading screens.
-*   **Backend:** Go (Standard Library + `client-go`) - Manages authentication, Kubernetes pod lifecycle, and reverse proxying.
-*   **Infrastructure:** Kubernetes - Orchestrates the application and user desktop instances.
+*   **Frontend:** React (Vite + TypeScript + Radix UI Themes) - Provides a dashboard for instance management, authentication UI, and loading screens.
+*   **Backend:*　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　* Go (Standard Library + `client-go`) - Manages authentication, Kubernetes pod lifecycle, reverse proxying, and background synchronization/cleanup.
+*   **Infrastructure:** Kubernetes - Orchestrates the application and user workspace instances.
 
 ## Getting Started
 
@@ -69,20 +74,74 @@ Hakoniwa is designed to be deployed on Kubernetes using Kustomize.
 
 Configuration is handled via environment variables:
 
-| Variable | Description | Default                      |
+| Variable | Description | Default |
 | :--- | :--- |:-----------------------------|
-| `LISTEN` | Address to listen on | `""` (All interfaces)        |
-| `PORT` | Port to listen on | `8080`                       |
-| `KUBECONFIG` | Path to kubeconfig file (optional) | `""`                         |
-| `KUBERNETES_NAMESPACE` | Namespace to manage pods in | `default`                    |
-| `INSTANCE_INACTIVITY_TIMEOUT`| Duration before idle instances are reaped | `1m`                         |
-| `MAX_POD_COUNT` | Maximum concurrent desktop instances | `3`                          |
-| `POD_TEMPLATE_PATH` | Path to a custom Pod YAML template | `""` (Uses embedded default) |
+| `LISTEN` | Address to listen on | `""` (All interfaces) |
+| `PORT` | Port to listen on | `8080` |
+| `KUBECONFIG` | Path to kubeconfig file (optional) | `""` |
+| `KUBERNETES_NAMESPACE` | Namespace to manage pods in | `default` |
+| `INSTANCE_INACTIVITY_TIMEOUT`| Duration before idle instances are reaped | `1m` |
+| `MAX_POD_COUNT` | Maximum total concurrent pods (across all users) | `100` |
+| `MAX_INSTANCES_PER_USER` | Maximum instances allowed per user | `5` |
+| `MAX_INSTANCES_PER_USER_PER_TYPE` | Maximum instances of a specific type allowed per user | `3` |
+| `POD_TEMPLATE_PATH` | Path to a Pod YAML template file. This file can contain multiple Pod definitions (as a Kubernetes List or multi-document YAML), where each `metadata.name` defines an instance type (e.g., "webtop", "jupyter"). | `""` (Uses embedded default) |
 | `TITLE` | Application title | `Hakoniwa` |
-| `MESSAGE` | Welcome message displayed below the title | `On-Demand Cloud Desktop Environment` |
+| `MESSAGE` | Welcome message displayed below the title | `On-Demand Cloud Workspace Environment` |
 | `LOGO_URL` | URL to the application logo | `/_hakoniwa/hakoniwa_logo.webp` |
 | `TERMS_OF_SERVICE_URL` | URL to the terms of service | `""` |
 | `PRIVACY_POLICY_URL` | URL to the privacy policy | `""` |
+
+### Pod Template Configuration
+
+The file specified by `POD_TEMPLATE_PATH` (or the embedded default) should be a Kubernetes Pod definition. For multiple instance types, it should contain a list of Pods (e.g., `kind: List` with `items`, or multiple YAML documents separated by `---`).
+
+Each Pod definition **must** include:
+*   `metadata.name`: This will be used as the unique ID for the instance type (e.g., "webtop", "jupyter").
+*   `metadata.annotations`:
+    *   `hakoniwa.aplulu.me/display-name`: (Optional) A human-readable name for the instance type, displayed in the UI. Defaults to `metadata.name` if not provided.
+    *   `hakoniwa.aplulu.me/port`: The target port of the application running in the Pod (e.g., "3000" for Webtop, "8888" for Jupyter). Defaults to "3000".
+
+Example for `pod_template.yaml`:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webtop
+  annotations:
+    hakoniwa.aplulu.me/display-name: "Webtop (XFCE Desktop)"
+    hakoniwa.aplulu.me/port: "3000"
+spec:
+  containers:
+  - name: webtop
+    image: lscr.io/linuxserver/webtop:latest
+    env:
+    - name: PUID
+      value: "1000"
+    - name: PGID
+      value: "1000"
+    # HAKONIWA_INSTANCE_ID and HAKONIWA_BASE_URL are injected by Hakoniwa automatically
+    ports:
+    - containerPort: 3000
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jupyter
+  annotations:
+    hakoniwa.aplulu.me/display-name: "Jupyter Notebook"
+    hakoniwa.aplulu.me/port: "8888"
+spec:
+  containers:
+  - name: jupyter
+    image: jupyter/base-notebook:latest
+    env:
+    - name: JUPYTER_ENABLE_LAB
+      value: "yes"
+    - name: NOTEBOOK_ARGS
+      value: "--allow-root --ip=0.0.0.0 --port=8888 --no-browser --NotebookApp.base_url=$(HAKONIWA_BASE_URL)"
+    ports:
+    - containerPort: 8888
+```
 
 ### Authentication Configuration
 
@@ -100,7 +159,6 @@ Hakoniwa supports multiple authentication methods which can be configured via en
 | `OIDC_NAME` | Display name for the OIDC login button on the frontend. | `OpenID Connect` |
 | `OIDC_SCOPES` | Comma-separated list of OIDC scopes to request. | `openid,profile` |
 | `SESSION_EXPIRATION` | Duration for which the session JWT is valid. Accessing the service will extend the session if remaining time is less than half of this duration (sliding session). | `24h` |
-| `AUTH_AUTO_LOGIN` | If `true`, the frontend will automatically attempt to log in using the only available authentication method if there's just one configured in `AUTH_METHODS`. Default: `false`. | `false` |
 
 #### OIDC Authentication Flow
 

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -28,8 +27,7 @@ func NewProxyHandler(instanceUsecase usecase.InstanceManagement, logger *slog.Lo
 	}
 }
 
-func (h *ProxyHandler) Proxy(userID, targetIP string, w http.ResponseWriter, r *http.Request) {
-	targetURL := fmt.Sprintf("http://%s:3000", targetIP)
+func (h *ProxyHandler) Proxy(instanceID, targetURL string, w http.ResponseWriter, r *http.Request) {
 	url, err := url.Parse(targetURL)
 	if err != nil {
 		h.logger.Error("Failed to parse proxy target URL", "url", targetURL, "error", err)
@@ -53,8 +51,8 @@ func (h *ProxyHandler) Proxy(userID, targetIP string, w http.ResponseWriter, r *
 
 		// Update LastActiveAt asynchronously
 		go func() {
-			if err := h.instanceUsecase.UpdateLastActive(context.Background(), userID); err != nil {
-				h.logger.Error("Failed to update instance activity", "user_id", userID, "error", err)
+			if err := h.instanceUsecase.UpdateLastActive(context.Background(), instanceID); err != nil {
+				h.logger.Error("Failed to update instance activity", "instance_id", instanceID, "error", err)
 			}
 		}()
 	}

@@ -8,9 +8,21 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// CreateInstance implements createInstance operation.
+	//
+	// Create a new instance.
+	//
+	// POST /instances
+	CreateInstance(ctx context.Context, req *CreateInstanceRequest) (CreateInstanceRes, error)
+	// DeleteInstance implements deleteInstance operation.
+	//
+	// Delete an instance.
+	//
+	// DELETE /instances/{instanceId}
+	DeleteInstance(ctx context.Context, params DeleteInstanceParams) (DeleteInstanceRes, error)
 	// GetAuthMe implements getAuthMe operation.
 	//
-	// Get current user and instance status.
+	// Get current user status.
 	//
 	// GET /auth/me
 	GetAuthMe(ctx context.Context) (GetAuthMeRes, error)
@@ -20,12 +32,30 @@ type Handler interface {
 	//
 	// GET /configuration
 	GetConfiguration(ctx context.Context) (*Configuration, error)
+	// ListInstanceTypes implements listInstanceTypes operation.
+	//
+	// List available instance types.
+	//
+	// GET /instance-types
+	ListInstanceTypes(ctx context.Context) ([]InstanceType, error)
+	// ListInstances implements listInstances operation.
+	//
+	// List user instances.
+	//
+	// GET /instances
+	ListInstances(ctx context.Context) ([]Instance, error)
 	// LoginAnonymous implements loginAnonymous operation.
 	//
-	// Login anonymously (creates session and instance).
+	// Login anonymously (creates session only).
 	//
 	// POST /auth/anonymous
 	LoginAnonymous(ctx context.Context) (*AuthStatus, error)
+	// Logout implements logout operation.
+	//
+	// Logout.
+	//
+	// POST /auth/logout
+	Logout(ctx context.Context) error
 	// OidcAuthorize implements oidcAuthorize operation.
 	//
 	// Redirect to OIDC provider.

@@ -13,14 +13,48 @@ const resources = {
         label: 'Status:',
         unknown: 'unknown',
       },
+      dashboard: {
+        description: 'Your desktop environment is ready to be created. Click the button below to start.',
+        title: 'My Workspaces',
+        subtitle: 'Manage your cloud development environments.',
+      },
+      workspace: {
+        status: {
+          pending: 'Starting',
+          running: 'Running',
+          terminating: 'Stopping',
+        },
+        action: {
+          open: 'Open',
+          delete: 'Delete Workspace',
+          cancel: 'Cancel',
+          back_to_list: 'Back to list',
+        },
+        create: {
+          card_title: 'New Workspace',
+          card_desc: 'Launch a new environment',
+          modal_title: 'Create New Workspace',
+          modal_desc: 'Choose a configuration for your new cloud workspace.',
+          env_type_label: 'Environment Type',
+          submit: 'Launch Workspace',
+          placeholder_select: 'Select type',
+          no_types: 'No instance types available',
+        },
+      },
+      user: {
+        guest: 'Guest',
+        logout: 'Logout',
+      },
       error: {
         title: 'Error Occurred',
         generic_desc: 'Something went wrong while connecting.',
         connection_failed: 'Failed to connect to server',
         login_failed: 'Login failed',
+        max_instances: 'Maximum number of instances reached. Please try again later.',
       },
       action: {
         retry: 'Retry',
+        start_desktop: 'Start Desktop',
       },
       login: {
         oidc_button: 'Login with {{name}}',
@@ -47,14 +81,48 @@ const resources = {
         label: 'ステータス:',
         unknown: '不明',
       },
+      dashboard: {
+        description: 'デスクトップ環境を作成する準備ができました。下のボタンをクリックして開始してください。',
+        title: 'ワークスペース',
+        subtitle: 'クラウド開発環境を管理します。',
+      },
+      workspace: {
+        status: {
+          pending: '起動中',
+          running: '実行中',
+          terminating: '停止中',
+        },
+        action: {
+          open: '開く',
+          delete: 'ワークスペースを削除',
+          cancel: 'キャンセル',
+          back_to_list: '一覧に戻る',
+        },
+        create: {
+          card_title: '新規作成',
+          card_desc: '新しい環境を立ち上げます',
+          modal_title: 'ワークスペースの作成',
+          modal_desc: '新しいクラウドワークスペースの種類を選択してください。',
+          env_type_label: '環境タイプ',
+          submit: '作成する',
+          placeholder_select: 'タイプを選択',
+          no_types: '利用可能なタイプがありません',
+        },
+      },
+      user: {
+        guest: 'ゲスト',
+        logout: 'ログアウト',
+      },
       error: {
         title: 'エラーが発生しました',
         generic_desc: '接続中に問題が発生しました。',
         connection_failed: 'サーバーへの接続に失敗しました',
         login_failed: 'ログインに失敗しました',
+        max_instances: 'インスタンス数の上限に達しました。しばらくしてから再度お試しください。',
       },
       action: {
         retry: '再試行',
+        start_desktop: 'デスクトップを起動',
       },
       login: {
         oidc_button: '{{name}}でログイン',

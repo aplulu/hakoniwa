@@ -8,7 +8,7 @@ servers:
 paths:
   /auth/me:
     get:
-      summary: Get current user and instance status
+      summary: Get current user status
       operationId: getAuthMe
       responses:
         '200':
@@ -21,7 +21,7 @@ paths:
           description: Unauthorized (Not logged in)
   /auth/anonymous:
     post:
-      summary: Login anonymously (creates session and instance)
+      summary: Login anonymously (creates session only)
       operationId: loginAnonymous
       responses:
         '200':
@@ -30,6 +30,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthStatus'
+  /auth/logout:
+    post:
+      summary: Logout
+      operationId: logout
+      responses:
+        '200':
+          description: Logged out successfully
   /auth/oidc/authorize:
     get:
       summary: Redirect to OIDC provider
@@ -79,6 +86,67 @@ paths:
                 type: string
               description: URL to redirect to
               required: true
+  /instances/{instanceId}:
+    delete:
+      summary: Delete an instance
+      operationId: deleteInstance
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Instance deleted
+        '404':
+          description: Instance not found
+  /instances:
+    get:
+      summary: List user instances
+      operationId: listInstances
+      responses:
+        '200':
+          description: List of instances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instance'
+    post:
+      summary: Create a new instance
+      operationId: createInstance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInstanceRequest'
+      responses:
+        '200':
+          description: Instance created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+        '400':
+          description: Bad Request (e.g., invalid instance type)
+        '503':
+          description: Max instances reached
+  /instance-types:
+    get:
+      summary: List available instance types
+      operationId: listInstanceTypes
+      responses:
+        '200':
+          description: List of available instance types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InstanceType'
   /configuration:
     get:
       summary: Get application configuration
@@ -135,8 +203,6 @@ components:
       properties:
         user:
           $ref: '#/components/schemas/User'
-        instance:
-          $ref: '#/components/schemas/Instance'
       required:
         - user
     User:
@@ -154,10 +220,48 @@ components:
     Instance:
       type: object
       properties:
+        id:
+          type: string
+          description: Unique instance ID
+        name:
+          type: string
+          description: Display name of the instance
+        type:
+          type: string
+          description: Type of the instance
         status:
           type: string
           enum: [pending, running, terminating]
         pod_ip:
           type: string
       required:
+        - id
+        - name
+        - type
         - status
+    CreateInstanceRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Type of the instance to create
+      required:
+        - type
+    InstanceType:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the instance type
+        name:
+          type: string
+          description: Display name for the instance type
+        description:
+          type: string
+          description: Description of the instance type
+        logo_url:
+          type: string
+          description: URL to the logo of the instance type
+      required:
+        - id
+        - name

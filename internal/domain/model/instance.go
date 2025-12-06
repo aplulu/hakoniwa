@@ -11,7 +11,10 @@ const (
 )
 
 type Instance struct {
+	InstanceID   string
 	UserID       string
+	Type         string
+	DisplayName  string
 	PodName      string
 	PodIP        string
 	Status       InstanceStatus

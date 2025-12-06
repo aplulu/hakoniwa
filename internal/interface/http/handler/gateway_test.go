@@ -12,7 +12,7 @@ import (
 	"github.com/aplulu/hakoniwa/internal/interface/http/handler"
 )
 
-func TestGatewayHandler_ServeReactApp_CacheControl(t *testing.T) {
+func TestGatewayHandler_RedirectToDashboard_CacheControl(t *testing.T) {
 	// 1. Setup temporary static directory with index.html
 	tempDir, err := os.MkdirTemp("", "static")
 	if err != nil {
@@ -37,7 +37,7 @@ func TestGatewayHandler_ServeReactApp_CacheControl(t *testing.T) {
 		logger,
 	)
 
-	// 3. Create a request that triggers serveReactApp (Unauthenticated, not API, not static asset)
+	// 3. Create a request that triggers redirectToDashboard (Unauthenticated, not API, not static asset)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
@@ -47,6 +47,15 @@ func TestGatewayHandler_ServeReactApp_CacheControl(t *testing.T) {
 	// 5. Verify Headers
 	resp := w.Result()
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusFound {
+		t.Errorf("Expected status %d, got %d", http.StatusFound, resp.StatusCode)
+	}
+
+	location := resp.Header.Get("Location")
+	if location != "/_hakoniwa/" {
+		t.Errorf("Expected Location /_hakoniwa/, got %q", location)
+	}
 
 	cacheControl := resp.Header.Get("Cache-Control")
 	expectedCacheControl := "no-store, no-cache, must-revalidate, proxy-revalidate"
@@ -62,11 +71,5 @@ func TestGatewayHandler_ServeReactApp_CacheControl(t *testing.T) {
 	expires := resp.Header.Get("Expires")
 	if expires != "0" {
 		t.Errorf("Expected Expires 0, got %q", expires)
-	}
-
-	// 6. Verify Body
-	body, _ := io.ReadAll(resp.Body)
-	if string(body) != indexContent {
-		t.Errorf("Expected body %q, got %q", indexContent, string(body))
 	}
 }

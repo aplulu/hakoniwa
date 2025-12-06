@@ -8,8 +8,7 @@ import (
 
 // Ref: #/components/schemas/AuthStatus
 type AuthStatus struct {
-	User     User        `json:"user"`
-	Instance OptInstance `json:"instance"`
+	User User `json:"user"`
 }
 
 // GetUser returns the value of User.
@@ -17,19 +16,9 @@ func (s *AuthStatus) GetUser() User {
 	return s.User
 }
 
-// GetInstance returns the value of Instance.
-func (s *AuthStatus) GetInstance() OptInstance {
-	return s.Instance
-}
-
 // SetUser sets the value of User.
 func (s *AuthStatus) SetUser(val User) {
 	s.User = val
-}
-
-// SetInstance sets the value of Instance.
-func (s *AuthStatus) SetInstance(val OptInstance) {
-	s.Instance = val
 }
 
 func (*AuthStatus) getAuthMeRes() {}
@@ -134,6 +123,42 @@ func (s *Configuration) SetAuthAutoLogin(val bool) {
 	s.AuthAutoLogin = val
 }
 
+// CreateInstanceBadRequest is response for CreateInstance operation.
+type CreateInstanceBadRequest struct{}
+
+func (*CreateInstanceBadRequest) createInstanceRes() {}
+
+// Ref: #/components/schemas/CreateInstanceRequest
+type CreateInstanceRequest struct {
+	// Type of the instance to create.
+	Type string `json:"type"`
+}
+
+// GetType returns the value of Type.
+func (s *CreateInstanceRequest) GetType() string {
+	return s.Type
+}
+
+// SetType sets the value of Type.
+func (s *CreateInstanceRequest) SetType(val string) {
+	s.Type = val
+}
+
+// CreateInstanceServiceUnavailable is response for CreateInstance operation.
+type CreateInstanceServiceUnavailable struct{}
+
+func (*CreateInstanceServiceUnavailable) createInstanceRes() {}
+
+// DeleteInstanceNoContent is response for DeleteInstance operation.
+type DeleteInstanceNoContent struct{}
+
+func (*DeleteInstanceNoContent) deleteInstanceRes() {}
+
+// DeleteInstanceNotFound is response for DeleteInstance operation.
+type DeleteInstanceNotFound struct{}
+
+func (*DeleteInstanceNotFound) deleteInstanceRes() {}
+
 // GetAuthMeUnauthorized is response for GetAuthMe operation.
 type GetAuthMeUnauthorized struct{}
 
@@ -141,8 +166,29 @@ func (*GetAuthMeUnauthorized) getAuthMeRes() {}
 
 // Ref: #/components/schemas/Instance
 type Instance struct {
+	// Unique instance ID.
+	ID string `json:"id"`
+	// Display name of the instance.
+	Name string `json:"name"`
+	// Type of the instance.
+	Type   string         `json:"type"`
 	Status InstanceStatus `json:"status"`
 	PodIP  OptString      `json:"pod_ip"`
+}
+
+// GetID returns the value of ID.
+func (s *Instance) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *Instance) GetName() string {
+	return s.Name
+}
+
+// GetType returns the value of Type.
+func (s *Instance) GetType() string {
+	return s.Type
 }
 
 // GetStatus returns the value of Status.
@@ -155,6 +201,21 @@ func (s *Instance) GetPodIP() OptString {
 	return s.PodIP
 }
 
+// SetID sets the value of ID.
+func (s *Instance) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *Instance) SetName(val string) {
+	s.Name = val
+}
+
+// SetType sets the value of Type.
+func (s *Instance) SetType(val string) {
+	s.Type = val
+}
+
 // SetStatus sets the value of Status.
 func (s *Instance) SetStatus(val InstanceStatus) {
 	s.Status = val
@@ -164,6 +225,8 @@ func (s *Instance) SetStatus(val InstanceStatus) {
 func (s *Instance) SetPodIP(val OptString) {
 	s.PodIP = val
 }
+
+func (*Instance) createInstanceRes() {}
 
 type InstanceStatus string
 
@@ -213,6 +276,61 @@ func (s *InstanceStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/InstanceType
+type InstanceType struct {
+	// Unique identifier for the instance type.
+	ID string `json:"id"`
+	// Display name for the instance type.
+	Name string `json:"name"`
+	// Description of the instance type.
+	Description OptString `json:"description"`
+	// URL to the logo of the instance type.
+	LogoURL OptString `json:"logo_url"`
+}
+
+// GetID returns the value of ID.
+func (s *InstanceType) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *InstanceType) GetName() string {
+	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *InstanceType) GetDescription() OptString {
+	return s.Description
+}
+
+// GetLogoURL returns the value of LogoURL.
+func (s *InstanceType) GetLogoURL() OptString {
+	return s.LogoURL
+}
+
+// SetID sets the value of ID.
+func (s *InstanceType) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *InstanceType) SetName(val string) {
+	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *InstanceType) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetLogoURL sets the value of LogoURL.
+func (s *InstanceType) SetLogoURL(val OptString) {
+	s.LogoURL = val
+}
+
+// LogoutOK is response for Logout operation.
+type LogoutOK struct{}
+
 // OidcAuthorizeFound is response for OidcAuthorize operation.
 type OidcAuthorizeFound struct {
 	Location string
@@ -241,52 +359,6 @@ func (s *OidcCallbackFound) GetLocation() string {
 // SetLocation sets the value of Location.
 func (s *OidcCallbackFound) SetLocation(val string) {
 	s.Location = val
-}
-
-// NewOptInstance returns new OptInstance with value set to v.
-func NewOptInstance(v Instance) OptInstance {
-	return OptInstance{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptInstance is optional Instance.
-type OptInstance struct {
-	Value Instance
-	Set   bool
-}
-
-// IsSet returns true if OptInstance was set.
-func (o OptInstance) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptInstance) Reset() {
-	var v Instance
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptInstance) SetTo(v Instance) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptInstance) Get() (v Instance, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptInstance) Or(d Instance) Instance {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
 }
 
 // NewOptString returns new OptString with value set to v.

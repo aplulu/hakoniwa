@@ -1,13 +1,17 @@
 package config
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
-	"log/slog"
+	"io"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 type config struct {
@@ -28,8 +32,14 @@ type config struct {
 	// InstanceInactivityTimeout is the time duration after which an instance is considered inactive.
 	InstanceInactivityTimeout time.Duration `envconfig:"INSTANCE_INACTIVITY_TIMEOUT" default:"1m"`
 
-	// MaxPodCount is the maximum number of pods allowed.
-	MaxPodCount int `envconfig:"MAX_POD_COUNT" default:"3"`
+	// MaxPodCount is the maximum number of pods allowed (Global limit).
+	MaxPodCount int `envconfig:"MAX_POD_COUNT" default:"100"`
+
+	// MaxInstancesPerUser is the maximum number of instances allowed per user.
+	MaxInstancesPerUser int `envconfig:"MAX_INSTANCES_PER_USER" default:"2"`
+
+	// MaxInstancesPerUserPerType is the maximum number of instances allowed per user per type.
+	MaxInstancesPerUserPerType int `envconfig:"MAX_INSTANCES_PER_USER_PER_TYPE" default:"1"`
 
 	// PodTemplatePath is the path to the pod template file.
 	PodTemplatePath string `envconfig:"POD_TEMPLATE_PATH" default:""`
@@ -38,10 +48,10 @@ type config struct {
 	Title string `envconfig:"TITLE" default:"Hakoniwa"`
 
 	// Message is the welcome message displayed below the title.
-	Message string `envconfig:"MESSAGE" default:"On-Demand Cloud Desktop Environment"`
+	Message string `envconfig:"MESSAGE" default:"On-Demand Cloud Workspace Environment"`
 
 	// LogoURL is the URL to the application logo.
-	LogoURL string `envconfig:"LOGO_URL" default:"/_hakoniwa/hakoniwa_logo.webp"`
+	LogoURL string `envconfig:"LOGO_URL" default:"/_hakoniwa/img/hakoniwa_logo.webp"`
 
 	// TermsOfServiceURL is the URL to the terms of service.
 	TermsOfServiceURL string `envconfig:"TERMS_OF_SERVICE_URL" default:""`
@@ -75,7 +85,19 @@ type config struct {
 	OIDCScopes []string `envconfig:"OIDC_SCOPES" default:"openid,profile"`
 }
 
-var conf config
+type InstanceType struct {
+	ID          string
+	DisplayName string
+	Description string
+	LogoURL     string
+	TargetPort  string // string to support named ports, though usually int
+	Content     []byte
+}
+
+var (
+	conf          config
+	instanceTypes map[string]InstanceType
+)
 
 //go:embed pod_template.yaml
 var defaultPodTemplate []byte
@@ -86,23 +108,162 @@ func LoadConf() error {
 		return fmt.Errorf("config.LoadConf: failed to load config: %w", err)
 	}
 
+	instanceTypes = make(map[string]InstanceType)
+
+	var content []byte
+	if conf.PodTemplatePath != "" {
+		var err error
+		content, err = os.ReadFile(conf.PodTemplatePath)
+		if err != nil {
+			return fmt.Errorf("failed to read pod template path %s: %w", conf.PodTemplatePath, err)
+		}
+	} else {
+		content = defaultPodTemplate
+	}
+
+	// Decode multiple documents or List
+	decoder := k8syaml.NewYAMLOrJSONDecoder(bytes.NewReader(content), 4096)
+	for {
+		// Verify if it is a generic map first to extract metadata
+		var raw map[string]interface{}
+		err := decoder.Decode(&raw)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return fmt.Errorf("failed to decode pod template: %w", err)
+		}
+
+		// Check if it's a List
+		if kind, ok := raw["kind"].(string); ok && kind == "List" {
+			if items, ok := raw["items"].([]interface{}); ok {
+				for _, item := range items {
+					// Re-marshal item to bytes to store in InstanceType
+					// This is a bit inefficient but works
+					// Or we can just parse manually.
+					// Let's try to extract metadata from map.
+					if itemMap, ok := item.(map[string]interface{}); ok {
+						it, err := parseInstanceTypeMap(itemMap)
+						if err != nil {
+							return err
+						}
+						instanceTypes[it.ID] = it
+					}
+				}
+			}
+			continue
+		}
+
+		// Single Item (Pod)
+		it, err := parseInstanceTypeMap(raw)
+		if err != nil {
+			return err
+		}
+		instanceTypes[it.ID] = it
+	}
+
+	// Fallback if empty?
+	if len(instanceTypes) == 0 {
+		// Should we error? Or just leave empty?
+		// Original default was webtop.
+	}
+
 	return nil
 }
 
-// GetPodTemplate returns the pod template as bytes.
-// It checks the configured PodTemplatePath. If it exists, it reads from there.
-// Otherwise, it returns the default embedded template.
-func GetPodTemplate(logger *slog.Logger) ([]byte, error) {
-	path := PodTemplatePath()
-	if path != "" {
-		if _, err := os.Stat(path); err == nil {
-			return os.ReadFile(path)
-		}
-		if logger != nil {
-			logger.Warn("Pod template path specified but file not found, using default", "path", path)
-		}
+func parseInstanceTypeMap(raw map[string]interface{}) (InstanceType, error) {
+	// Extract metadata
+	metadata, ok := raw["metadata"].(map[string]interface{})
+	if !ok {
+		return InstanceType{}, fmt.Errorf("missing metadata in pod template")
 	}
-	return defaultPodTemplate, nil
+
+	name, _ := metadata["name"].(string)
+	if name == "" {
+		return InstanceType{}, fmt.Errorf("missing metadata.name in pod template")
+	}
+
+	annotations, _ := metadata["annotations"].(map[string]interface{})
+
+	displayName := name
+	if val, ok := annotations["hakoniwa.aplulu.me/display-name"].(string); ok {
+		displayName = val
+	}
+
+	description := ""
+	if val, ok := annotations["hakoniwa.aplulu.me/description"].(string); ok {
+		description = val
+	}
+
+	logoURL := ""
+	if val, ok := annotations["hakoniwa.aplulu.me/image-url"].(string); ok {
+		logoURL = val
+	} else if val, ok := annotations["hakoniwa.aplulu.me/logo-url"].(string); ok {
+		logoURL = val
+	}
+
+	targetPort := "3000"
+	if val, ok := annotations["hakoniwa.aplulu.me/port"].(string); ok {
+		targetPort = val
+	}
+
+	// Marshal back to bytes for Content
+	// Note: This drops comments and re-formats, but that's acceptable for internal use.
+	// We need a serializer. k8s yaml serializer?
+	// Or just json marshal? K8s can handle JSON.
+	// Let's use JSON marshaling as it's safer and built-in?
+	// But we used yaml decoder.
+	// Let's use "sigs.k8s.io/yaml" Marshal
+	// We need to import it.
+	// Wait, I removed sigs.k8s.io/yaml import in step 2 of previous change?
+	// No, I kept it.
+	// But here I used k8s.io/apimachinery/pkg/util/yaml.
+
+	// Let's use a trick: we need the original bytes for this item.
+	// Splitting by stream is hard to get original bytes.
+	// Marshalling back is fine.
+
+	content, err := yaml.Marshal(raw)
+	if err != nil {
+		return InstanceType{}, fmt.Errorf("failed to marshal item content: %w", err)
+	}
+
+	return InstanceType{
+		ID:          name,
+		DisplayName: displayName,
+		Description: description,
+		LogoURL:     logoURL,
+		TargetPort:  targetPort,
+		Content:     content,
+	}, nil
+}
+
+// GetInstanceType returns the instance type by ID.
+func GetInstanceType(id string) (InstanceType, bool) {
+	it, ok := instanceTypes[id]
+	return it, ok
+}
+
+// GetInstanceTypes returns all available instance types.
+func GetInstanceTypes() []InstanceType {
+	types := make([]InstanceType, 0, len(instanceTypes))
+	for _, it := range instanceTypes {
+		types = append(types, it)
+	}
+	sort.Slice(types, func(i, j int) bool {
+		return types[i].DisplayName < types[j].DisplayName
+	})
+	return types
+}
+
+// MaxInstancesPerUser returns the max instances per user.
+func MaxInstancesPerUser() int {
+	return conf.MaxInstancesPerUser
+}
+
+// MaxInstancesPerUserPerType returns the max instances per user per type.
+func MaxInstancesPerUserPerType() int {
+	return conf.MaxInstancesPerUserPerType
 }
 
 // Listen returns the listen address.
@@ -138,11 +299,6 @@ func InstanceInactivityTimeout() time.Duration {
 // MaxPodCount returns the maximum number of pods allowed.
 func MaxPodCount() int {
 	return conf.MaxPodCount
-}
-
-// PodTemplatePath returns the path to the pod template file.
-func PodTemplatePath() string {
-	return conf.PodTemplatePath
 }
 
 // Title returns the application title.

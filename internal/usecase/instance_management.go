@@ -2,7 +2,10 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/aplulu/hakoniwa/internal/config"
 	"github.com/aplulu/hakoniwa/internal/domain/model"
@@ -10,9 +13,11 @@ import (
 )
 
 type InstanceManagement interface {
-	GetInstanceStatus(ctx context.Context, userID string) (*model.Instance, error)
-	CreateInstance(ctx context.Context, userID string) error
-	UpdateLastActive(ctx context.Context, userID string) error
+	ListInstances(ctx context.Context, userID string) ([]*model.Instance, error)
+	GetInstance(ctx context.Context, instanceID string) (*model.Instance, error)
+	CreateInstance(ctx context.Context, userID, instanceType string) (*model.Instance, error)
+	DeleteInstance(ctx context.Context, userID, instanceID string) error
+	UpdateLastActive(ctx context.Context, instanceID string) error
 }
 
 type InstanceInteractor struct {
@@ -27,32 +32,32 @@ func NewInstanceInteractor(instanceRepo repository.InstanceRepository, k8sClient
 	}
 }
 
-func (i *InstanceInteractor) UpdateLastActive(ctx context.Context, userID string) error {
-	instance, err := i.instanceRepo.Get(ctx, userID)
+func (i *InstanceInteractor) UpdateLastActive(ctx context.Context, instanceID string) error {
+	instance, err := i.instanceRepo.FindByID(ctx, instanceID)
 	if err != nil {
-		// If not found, maybe it's already deleted. We can ignore.
-		return nil
+		return nil // Ignore if not found
 	}
 	instance.LastActiveAt = time.Now()
 	return i.instanceRepo.Save(ctx, instance)
 }
 
-func (i *InstanceInteractor) GetInstanceStatus(ctx context.Context, userID string) (*model.Instance, error) {
-	instance, err := i.instanceRepo.Get(ctx, userID)
+func (i *InstanceInteractor) ListInstances(ctx context.Context, userID string) ([]*model.Instance, error) {
+	instances, err := i.instanceRepo.FindByUser(ctx, userID)
 	if err != nil {
-		// If not found, it's not an error, just return nil
-		// But Get returns error if not found based on implementation?
-		// Let's assume we return nil, nil if not found for the handler to handle
-		// Current memory repo returns error "instance not found".
-		// We should handle that.
-		// Let's just bubble up the error for now, handler can check if it's "not found" or use a specific error type.
-		// But here we want to return nil if not found.
-		return nil, nil
+		return nil, err
+	}
+	return instances, nil
+}
+
+func (i *InstanceInteractor) GetInstance(ctx context.Context, instanceID string) (*model.Instance, error) {
+	instance, err := i.instanceRepo.FindByID(ctx, instanceID)
+	if err != nil {
+		return nil, err
 	}
 
+	// Sync with K8s
 	ip, err := i.k8sClient.GetPodIP(ctx, instance.PodName)
 	if err != nil {
-		// If error accessing K8s, keep last known status? Or return error?
 		return nil, err
 	}
 
@@ -60,7 +65,11 @@ func (i *InstanceInteractor) GetInstanceStatus(ctx context.Context, userID strin
 	if ip != "" {
 		newStatus = model.InstanceStatusRunning
 	} else {
+		// If it was running but now no IP, maybe it crashed or is terminating?
+		// Or just not ready?
 		if instance.Status == model.InstanceStatusRunning {
+			// Keep running if transient?
+			// For now simple logic: No IP = Pending/Terminating
 			newStatus = model.InstanceStatusPending
 		}
 	}
@@ -76,39 +85,81 @@ func (i *InstanceInteractor) GetInstanceStatus(ctx context.Context, userID strin
 	return instance, nil
 }
 
-func (i *InstanceInteractor) CreateInstance(ctx context.Context, userID string) error {
-	existing, _ := i.instanceRepo.Get(ctx, userID)
-	if existing != nil {
-		// Already exists, maybe just ensure it's running?
-		// For now, assume create is called only when needed.
-		return nil
-	}
-
-	// Check max instances
-	count, err := i.instanceRepo.Count(ctx)
-	if err != nil {
-		return err
-	}
-	if count >= config.MaxPodCount() {
-		return model.ErrMaxInstancesReached
-	}
-
-	podName, err := i.k8sClient.CreateInstancePod(ctx, userID)
+func (i *InstanceInteractor) DeleteInstance(ctx context.Context, userID, instanceID string) error {
+	instance, err := i.instanceRepo.FindByID(ctx, instanceID)
 	if err != nil {
 		return err
 	}
 
-	// Create Instance Record
+	if instance.UserID != userID {
+		return fmt.Errorf("instance not found") // Obfuscate
+	}
+
+	if err := i.k8sClient.DeletePod(ctx, instance.PodName); err != nil {
+		// Log warning but continue to delete from repo?
+		// Ideally we want consistency. If delete pod fails, maybe keep it?
+		// But if pod is gone, we should delete from repo.
+		// k8sClient.DeletePod should return nil if not found.
+		return err
+	}
+
+	return i.instanceRepo.Delete(ctx, instanceID)
+}
+
+func (i *InstanceInteractor) CreateInstance(ctx context.Context, userID, instanceTypeID string) (*model.Instance, error) {
+	// Check Global Limit
+	globalCount, err := i.instanceRepo.Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if globalCount >= config.MaxPodCount() {
+		return nil, fmt.Errorf("max pod count reached")
+	}
+
+	// Check User Limit
+	userCount, err := i.instanceRepo.CountByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if userCount >= config.MaxInstancesPerUser() {
+		return nil, fmt.Errorf("max instances per user reached")
+	}
+
+	// Check Type Limit
+	typeCount, err := i.instanceRepo.CountByUserAndType(ctx, userID, instanceTypeID)
+	if err != nil {
+		return nil, err
+	}
+	if typeCount >= config.MaxInstancesPerUserPerType() {
+		return nil, fmt.Errorf("max instances for this type reached")
+	}
+
+	// Get Template
+	it, ok := config.GetInstanceType(instanceTypeID)
+	if !ok {
+		return nil, fmt.Errorf("invalid instance type: %s", instanceTypeID)
+	}
+
+	// Generate ID
+	instanceID := uuid.New().String()
+
 	instance := &model.Instance{
+		InstanceID:   instanceID,
 		UserID:       userID,
-		PodName:      podName,
+		Type:         instanceTypeID,
+		DisplayName:  it.DisplayName,
 		Status:       model.InstanceStatusPending,
 		LastActiveAt: time.Now(),
+		// PodName set by k8s client
+	}
+
+	if err := i.k8sClient.CreateInstancePod(ctx, instance, it.Content); err != nil {
+		return nil, err
 	}
 
 	if err := i.instanceRepo.Save(ctx, instance); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return instance, nil
 }

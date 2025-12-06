@@ -27,9 +27,21 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
+	// CreateInstance invokes createInstance operation.
+	//
+	// Create a new instance.
+	//
+	// POST /instances
+	CreateInstance(ctx context.Context, request *CreateInstanceRequest) (CreateInstanceRes, error)
+	// DeleteInstance invokes deleteInstance operation.
+	//
+	// Delete an instance.
+	//
+	// DELETE /instances/{instanceId}
+	DeleteInstance(ctx context.Context, params DeleteInstanceParams) (DeleteInstanceRes, error)
 	// GetAuthMe invokes getAuthMe operation.
 	//
-	// Get current user and instance status.
+	// Get current user status.
 	//
 	// GET /auth/me
 	GetAuthMe(ctx context.Context) (GetAuthMeRes, error)
@@ -39,12 +51,30 @@ type Invoker interface {
 	//
 	// GET /configuration
 	GetConfiguration(ctx context.Context) (*Configuration, error)
+	// ListInstanceTypes invokes listInstanceTypes operation.
+	//
+	// List available instance types.
+	//
+	// GET /instance-types
+	ListInstanceTypes(ctx context.Context) ([]InstanceType, error)
+	// ListInstances invokes listInstances operation.
+	//
+	// List user instances.
+	//
+	// GET /instances
+	ListInstances(ctx context.Context) ([]Instance, error)
 	// LoginAnonymous invokes loginAnonymous operation.
 	//
-	// Login anonymously (creates session and instance).
+	// Login anonymously (creates session only).
 	//
 	// POST /auth/anonymous
 	LoginAnonymous(ctx context.Context) (*AuthStatus, error)
+	// Logout invokes logout operation.
+	//
+	// Logout.
+	//
+	// POST /auth/logout
+	Logout(ctx context.Context) error
 	// OidcAuthorize invokes oidcAuthorize operation.
 	//
 	// Redirect to OIDC provider.
@@ -102,9 +132,176 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 	return u
 }
 
+// CreateInstance invokes createInstance operation.
+//
+// Create a new instance.
+//
+// POST /instances
+func (c *Client) CreateInstance(ctx context.Context, request *CreateInstanceRequest) (CreateInstanceRes, error) {
+	res, err := c.sendCreateInstance(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendCreateInstance(ctx context.Context, request *CreateInstanceRequest) (res CreateInstanceRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("createInstance"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/instances"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, CreateInstanceOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/instances"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeCreateInstanceRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeCreateInstanceResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// DeleteInstance invokes deleteInstance operation.
+//
+// Delete an instance.
+//
+// DELETE /instances/{instanceId}
+func (c *Client) DeleteInstance(ctx context.Context, params DeleteInstanceParams) (DeleteInstanceRes, error) {
+	res, err := c.sendDeleteInstance(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendDeleteInstance(ctx context.Context, params DeleteInstanceParams) (res DeleteInstanceRes, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteInstance"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/instances/{instanceId}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeleteInstanceOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/instances/"
+	{
+		// Encode "instanceId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "instanceId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.InstanceId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeleteInstanceResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetAuthMe invokes getAuthMe operation.
 //
-// Get current user and instance status.
+// Get current user status.
 //
 // GET /auth/me
 func (c *Client) GetAuthMe(ctx context.Context) (GetAuthMeRes, error) {
@@ -248,9 +445,155 @@ func (c *Client) sendGetConfiguration(ctx context.Context) (res *Configuration, 
 	return result, nil
 }
 
+// ListInstanceTypes invokes listInstanceTypes operation.
+//
+// List available instance types.
+//
+// GET /instance-types
+func (c *Client) ListInstanceTypes(ctx context.Context) ([]InstanceType, error) {
+	res, err := c.sendListInstanceTypes(ctx)
+	return res, err
+}
+
+func (c *Client) sendListInstanceTypes(ctx context.Context) (res []InstanceType, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listInstanceTypes"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/instance-types"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ListInstanceTypesOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/instance-types"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeListInstanceTypesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// ListInstances invokes listInstances operation.
+//
+// List user instances.
+//
+// GET /instances
+func (c *Client) ListInstances(ctx context.Context) ([]Instance, error) {
+	res, err := c.sendListInstances(ctx)
+	return res, err
+}
+
+func (c *Client) sendListInstances(ctx context.Context) (res []Instance, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listInstances"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/instances"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ListInstancesOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/instances"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeListInstancesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // LoginAnonymous invokes loginAnonymous operation.
 //
-// Login anonymously (creates session and instance).
+// Login anonymously (creates session only).
 //
 // POST /auth/anonymous
 func (c *Client) LoginAnonymous(ctx context.Context) (*AuthStatus, error) {
@@ -314,6 +657,79 @@ func (c *Client) sendLoginAnonymous(ctx context.Context) (res *AuthStatus, err e
 
 	stage = "DecodeResponse"
 	result, err := decodeLoginAnonymousResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// Logout invokes logout operation.
+//
+// Logout.
+//
+// POST /auth/logout
+func (c *Client) Logout(ctx context.Context) error {
+	_, err := c.sendLogout(ctx)
+	return err
+}
+
+func (c *Client) sendLogout(ctx context.Context) (res *LogoutOK, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("logout"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/auth/logout"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, LogoutOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/auth/logout"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	stage = "DecodeResponse"
+	result, err := decodeLogoutResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
