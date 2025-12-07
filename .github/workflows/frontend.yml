@@ -1,0 +1,47 @@
+name: Frontend CI
+
+on:
+  push:
+    branches:
+      - "main"
+    paths:
+      - "ui/**"
+  pull_request:
+    branches:
+      - "main"
+    paths:
+      - "ui/**"
+
+defaults:
+  run:
+    working-directory: ./ui
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Check Formatting
+        run: pnpm format:check
+
+      - name: Build
+        run: pnpm build
