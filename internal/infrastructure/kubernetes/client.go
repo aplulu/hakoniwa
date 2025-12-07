@@ -138,12 +138,8 @@ func (c *Client) GetPodIP(ctx context.Context, podName string) (string, error) {
 		return "", fmt.Errorf("kubernetes.CreateInstancePod: failed to get pod: %w", err)
 	}
 
-	if pod.Status.Phase == corev1.PodRunning {
-		for _, cond := range pod.Status.Conditions {
-			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-				return pod.Status.PodIP, nil
-			}
-		}
+	if isPodReady(pod) {
+		return pod.Status.PodIP, nil
 	}
 
 	return "", nil // Not running or not ready yet
@@ -167,17 +163,8 @@ func (c *Client) GetPodStatus(ctx context.Context, podName string) (model.Instan
 	}
 
 	// Check Running & Ready
-	if pod.Status.Phase == corev1.PodRunning {
-		isReady := false
-		for _, cond := range pod.Status.Conditions {
-			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-				isReady = true
-				break
-			}
-		}
-		if isReady {
-			return model.InstanceStatusRunning, pod.Status.PodIP, nil
-		}
+	if isPodReady(pod) {
+		return model.InstanceStatusRunning, pod.Status.PodIP, nil
 	}
 
 	// Default to Pending (Phase is Pending, or Running but not Ready, or Unknown)
@@ -227,7 +214,7 @@ func (c *Client) ListInstancePods(ctx context.Context) ([]*model.Instance, error
 		}
 
 		status := model.InstanceStatusPending
-		if pod.Status.Phase == corev1.PodRunning {
+		if isPodReady(&pod) {
 			status = model.InstanceStatusRunning
 		}
 		// If not running (e.g. Pending, Unknown), it defaults to Pending.
@@ -268,4 +255,16 @@ func sanitizeUserID(userID string) string {
 	}
 
 	return safe
+}
+
+func isPodReady(pod *corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }
