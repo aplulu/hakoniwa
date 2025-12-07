@@ -28,6 +28,7 @@ Hakoniwa is an On-Demand Cloud Workspace Service running on Kubernetes. It dynam
 
 *   Go 1.25+
 *   Node.js 22+
+*   pnpm (Latest)
 *   Docker
 *   Kubernetes Cluster (local or remote)
 
@@ -50,8 +51,8 @@ Hakoniwa is an On-Demand Cloud Workspace Service running on Kubernetes. It dynam
 3.  **Run Frontend (Development Mode):**
     ```bash
     cd ui
-    npm install
-    npm run dev
+    pnpm install
+    pnpm run dev
     ```
 
 ### Deployment
