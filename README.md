@@ -19,57 +19,28 @@ Hakoniwa is an On-Demand Cloud Workspace Service running on Kubernetes. It dynam
 ## Architecture
 
 *   **Frontend:** React (Vite + TypeScript + Radix UI Themes) - Provides a dashboard for instance management, authentication UI, and loading screens.
-*   **Backend:*　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　* Go (Standard Library + `client-go`) - Manages authentication, Kubernetes pod lifecycle, reverse proxying, and background synchronization/cleanup.
+*   **Backend:** Go (Standard Library + `client-go`) - Manages authentication, Kubernetes pod lifecycle, reverse proxying, and background synchronization/cleanup.
 *   **Infrastructure:** Kubernetes - Orchestrates the application and user workspace instances.
 
 ## Getting Started
 
-### Prerequisites
+### Installation
 
-*   Go 1.25+
-*   Node.js 22+
-*   pnpm (Latest)
-*   Docker
-*   Kubernetes Cluster (local or remote)
+Hakoniwa is designed to be deployed on Kubernetes using Helm.
 
-### Local Development
-
-1.  **Clone the repository:**
+1.  **Add the Helm Repository:**
     ```bash
-    git clone https://github.com/aplulu/hakoniwa.git
-    cd hakoniwa
+    helm repo add hakoniwa https://aplulu.github.io/hakoniwa/
+    helm repo update
     ```
 
-2.  **Build and Run Locally:**
-    You can use the provided Makefile to build the project.
+2.  **Install the Chart:**
     ```bash
-    make build
-    ./bin/hakoniwa
+    helm install hakoniwa hakoniwa/hakoniwa \
+      --set config.jwtSecret="<YOUR_SECRET_KEY>" \
+      --namespace hakoniwa --create-namespace
     ```
-    *Note: For the backend to interact with a Kubernetes cluster locally, ensure your `KUBECONFIG` is set correctly or `~/.kube/config` is accessible.*
-
-3.  **Run Frontend (Development Mode):**
-    ```bash
-    cd ui
-    pnpm install
-    pnpm run dev
-    ```
-
-### Deployment
-
-Hakoniwa is designed to be deployed on Kubernetes using Kustomize.
-
-1.  **Build the Docker Image:**
-    ```bash
-    make docker-build
-    # Or for multi-platform
-    make docker-buildx
-    ```
-
-2.  **Deploy to Kubernetes:**
-    ```bash
-    kubectl apply -k deployments/base
-    ```
+    *Note: It is recommended to provide your own `config.jwtSecret`. If omitted, a random secret will be generated.*
 
 ## Configuration
 
@@ -171,6 +142,41 @@ When `oidc` is enabled, the authentication flow is as follows:
 5.  IdP redirects the browser back to the `OIDC_REDIRECT_URL` (which is a backend endpoint).
 6.  The Hakoniwa backend processes the callback, exchanges the authorization code for tokens, sets a session cookie, and then redirects the browser to the frontend (`/_hakoniwa/`).
 7.  If an error occurs during authentication, the backend redirects to the frontend with an error parameter (e.g., `/_hakoniwa/?error=login_failed`).
+
+## Development
+
+### Prerequisites
+
+*   Go 1.25+
+*   Node.js 22+
+*   pnpm (Latest)
+*   Docker
+*   Kubernetes Cluster (local or remote)
+
+### Development Environment
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/aplulu/hakoniwa.git
+    cd hakoniwa
+    ```
+
+2.  **Build and Run Locally:**
+    You can use the provided Makefile to build the project.
+    ```bash
+    make build
+    ./bin/hakoniwa
+    ```
+    *Note: For the backend to interact with a Kubernetes cluster locally, ensure your `KUBECONFIG` is set correctly or `~/.kube/config` is accessible.*
+
+3.  **Run Frontend (Development Mode):**
+    ```bash
+    cd ui
+    pnpm install
+    pnpm run dev
+    ```
+
+
 
 ## License
 

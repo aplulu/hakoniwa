@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hakoniwa.fullname" . }}
+  labels:
+    {{- include "hakoniwa.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "hakoniwa.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "hakoniwa.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "hakoniwa.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.config.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /_hakoniwa/api/configuration
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /_hakoniwa/api/configuration
+              port: http
+          env:
+            - name: LISTEN
+              value: {{ .Values.config.listen | quote }}
+            - name: PORT
+              value: {{ .Values.config.port | quote }}
+            - name: KUBERNETES_NAMESPACE
+              {{- if .Values.config.kubernetesNamespace }}
+              value: {{ .Values.config.kubernetesNamespace | quote }}
+              {{- else }}
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+              {{- end }}
+            - name: SWAGGER_UI_ENABLED
+              value: {{ .Values.config.swaggerUiEnabled | quote }}
+            - name: INSTANCE_INACTIVITY_TIMEOUT
+              value: {{ .Values.config.instanceInactivityTimeout | quote }}
+            - name: MAX_POD_COUNT
+              value: {{ .Values.config.maxPodCount | quote }}
+            - name: MAX_INSTANCES_PER_USER
+              value: {{ .Values.config.maxInstancesPerUser | quote }}
+            - name: MAX_INSTANCES_PER_USER_PER_TYPE
+              value: {{ .Values.config.maxInstancesPerUserPerType | quote }}
+            - name: POD_TEMPLATE_PATH
+              value: "/etc/hakoniwa/pod_template.yaml"
+            - name: TITLE
+              value: {{ .Values.config.title | quote }}
+            - name: MESSAGE
+              value: {{ .Values.config.message | quote }}
+            - name: LOGO_URL
+              value: {{ .Values.config.logoUrl | quote }}
+            - name: TERMS_OF_SERVICE_URL
+              value: {{ .Values.config.termsOfServiceUrl | quote }}
+            - name: PRIVACY_POLICY_URL
+              value: {{ .Values.config.privacyPolicyUrl | quote }}
+            - name: AUTH_METHODS
+              value: {{ .Values.config.authMethods | quote }}
+            - name: AUTH_AUTO_LOGIN
+              value: {{ .Values.config.authAutoLogin | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "hakoniwa.fullname" . }}
+                  key: jwt-secret
+            - name: SESSION_EXPIRATION
+              value: {{ .Values.config.sessionExpiration | quote }}
+            - name: OIDC_ISSUER_URL
+              value: {{ .Values.config.oidc.issuerUrl | quote }}
+            - name: OIDC_CLIENT_ID
+              value: {{ .Values.config.oidc.clientId | quote }}
+            - name: OIDC_CLIENT_SECRET
+              {{- if .Values.config.oidc.clientSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "hakoniwa.fullname" . }}
+                  key: oidc-client-secret
+              {{- else }}
+              value: ""
+              {{- end }}
+            - name: OIDC_REDIRECT_URL
+              value: {{ .Values.config.oidc.redirectUrl | quote }}
+            - name: OIDC_NAME
+              value: {{ .Values.config.oidc.name | quote }}
+            - name: OIDC_SCOPES
+              value: {{ .Values.config.oidc.scopes | quote }}
+          volumeMounts:
+            - name: pod-template
+              mountPath: /etc/hakoniwa/pod_template.yaml
+              subPath: pod_template.yaml
+              readOnly: true
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: pod-template
+          configMap:
+            name: {{ include "hakoniwa.fullname" . }}-pod-template
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
