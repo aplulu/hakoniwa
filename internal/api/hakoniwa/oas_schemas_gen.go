@@ -41,6 +41,8 @@ type Configuration struct {
 	OidcName OptString `json:"oidc_name"`
 	// Whether to automatically log in if only one auth method is available.
 	AuthAutoLogin bool `json:"auth_auto_login"`
+	// Whether persistent storage is enabled globally.
+	EnablePersistence bool `json:"enable_persistence"`
 }
 
 // GetTitle returns the value of Title.
@@ -83,6 +85,11 @@ func (s *Configuration) GetAuthAutoLogin() bool {
 	return s.AuthAutoLogin
 }
 
+// GetEnablePersistence returns the value of EnablePersistence.
+func (s *Configuration) GetEnablePersistence() bool {
+	return s.EnablePersistence
+}
+
 // SetTitle sets the value of Title.
 func (s *Configuration) SetTitle(val string) {
 	s.Title = val
@@ -123,6 +130,11 @@ func (s *Configuration) SetAuthAutoLogin(val bool) {
 	s.AuthAutoLogin = val
 }
 
+// SetEnablePersistence sets the value of EnablePersistence.
+func (s *Configuration) SetEnablePersistence(val bool) {
+	s.EnablePersistence = val
+}
+
 // CreateInstanceBadRequest is response for CreateInstance operation.
 type CreateInstanceBadRequest struct{}
 
@@ -132,6 +144,8 @@ func (*CreateInstanceBadRequest) createInstanceRes() {}
 type CreateInstanceRequest struct {
 	// Type of the instance to create.
 	Type string `json:"type"`
+	// Whether to enable persistent storage (OIDC users only).
+	Persistent OptBool `json:"persistent"`
 }
 
 // GetType returns the value of Type.
@@ -139,9 +153,19 @@ func (s *CreateInstanceRequest) GetType() string {
 	return s.Type
 }
 
+// GetPersistent returns the value of Persistent.
+func (s *CreateInstanceRequest) GetPersistent() OptBool {
+	return s.Persistent
+}
+
 // SetType sets the value of Type.
 func (s *CreateInstanceRequest) SetType(val string) {
 	s.Type = val
+}
+
+// SetPersistent sets the value of Persistent.
+func (s *CreateInstanceRequest) SetPersistent(val OptBool) {
+	s.Persistent = val
 }
 
 // CreateInstanceServiceUnavailable is response for CreateInstance operation.
@@ -286,6 +310,8 @@ type InstanceType struct {
 	Description OptString `json:"description"`
 	// URL to the logo of the instance type.
 	LogoURL OptString `json:"logo_url"`
+	// Whether this instance type supports persistent storage.
+	Persistable OptBool `json:"persistable"`
 }
 
 // GetID returns the value of ID.
@@ -308,6 +334,11 @@ func (s *InstanceType) GetLogoURL() OptString {
 	return s.LogoURL
 }
 
+// GetPersistable returns the value of Persistable.
+func (s *InstanceType) GetPersistable() OptBool {
+	return s.Persistable
+}
+
 // SetID sets the value of ID.
 func (s *InstanceType) SetID(val string) {
 	s.ID = val
@@ -326,6 +357,11 @@ func (s *InstanceType) SetDescription(val OptString) {
 // SetLogoURL sets the value of LogoURL.
 func (s *InstanceType) SetLogoURL(val OptString) {
 	s.LogoURL = val
+}
+
+// SetPersistable sets the value of Persistable.
+func (s *InstanceType) SetPersistable(val OptBool) {
+	s.Persistable = val
 }
 
 // LogoutOK is response for Logout operation.
@@ -359,6 +395,52 @@ func (s *OidcCallbackFound) GetLocation() string {
 // SetLocation sets the value of Location.
 func (s *OidcCallbackFound) SetLocation(val string) {
 	s.Location = val
+}
+
+// NewOptBool returns new OptBool with value set to v.
+func NewOptBool(v bool) OptBool {
+	return OptBool{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBool is optional bool.
+type OptBool struct {
+	Value bool
+	Set   bool
+}
+
+// IsSet returns true if OptBool was set.
+func (o OptBool) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBool) Reset() {
+	var v bool
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBool) SetTo(v bool) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBool) Get() (v bool, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
 }
 
 // NewOptString returns new OptString with value set to v.

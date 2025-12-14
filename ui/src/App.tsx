@@ -88,7 +88,7 @@ function App() {
   );
 
   // Create Instance Action
-  const createInstance = useCallback(async (typeId: string) => {
+  const createInstance = useCallback(async (typeId: string, persistent: boolean = false) => {
     setIsCreating(true);
     setAuthError('');
     try {
@@ -97,7 +97,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ type: typeId }),
+        body: JSON.stringify({ type: typeId, persistent }),
       });
       if (res.status === 503) {
         throw new Error(t('error.max_instances'));
@@ -255,7 +255,9 @@ function App() {
             ) : (
               /* Create Workspace Screen */
               <CreateInstanceView
+                user={authData.user}
                 instanceTypes={instanceTypes}
+                enablePersistence={config?.enable_persistence ?? false}
                 isCreating={isCreating}
                 error={authError}
                 onBack={() => setView('dashboard')}

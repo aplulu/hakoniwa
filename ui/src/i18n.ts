@@ -39,6 +39,10 @@ const resources = {
           submit: 'Launch Workspace',
           placeholder_select: 'Select type',
           no_types: 'No instance types available',
+          enable_persistent: 'Enable Persistent Storage',
+          persistent_disabled_hint: 'Persistent storage is only available for authenticated users',
+          persistent_disabled_global: 'Persistent storage is disabled by the administrator',
+          persistent_disabled_type: 'This instance type does not support persistent storage',
         },
       },
       user: {
@@ -107,6 +111,10 @@ const resources = {
           submit: '作成する',
           placeholder_select: 'タイプを選択',
           no_types: '利用可能なタイプがありません',
+          enable_persistent: '永続化ボリュームを有効にする',
+          persistent_disabled_hint: '永続化ボリュームは認証済みユーザーのみ利用可能です',
+          persistent_disabled_global: '永続化ボリュームは管理者によって無効化されています',
+          persistent_disabled_type: 'このタイプは永続化ボリュームに対応していません',
         },
       },
       user: {

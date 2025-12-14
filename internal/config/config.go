@@ -71,6 +71,9 @@ type config struct {
 	// SessionExpiration is the duration for which the session is valid.
 	SessionExpiration time.Duration `envconfig:"SESSION_EXPIRATION" default:"24h"`
 
+	// EnablePersistence is a flag to enable persistent storage globally.
+	EnablePersistence bool `envconfig:"ENABLE_PERSISTENCE" default:"true"`
+
 	// OIDCIssuerURL is the OIDC issuer URL.
 	OIDCIssuerURL string `envconfig:"OIDC_ISSUER_URL" default:""`
 	// OIDCClientID is the OpenID Connect client ID.
@@ -91,6 +94,7 @@ type InstanceType struct {
 	Description string
 	LogoURL     string
 	TargetPort  string // string to support named ports, though usually int
+	Persistable bool
 	Content     []byte
 }
 
@@ -207,6 +211,13 @@ func parseInstanceTypeMap(raw map[string]interface{}) (InstanceType, error) {
 		targetPort = val
 	}
 
+	persistable := false
+	if val, ok := annotations["hakoniwa.aplulu.me/persistable"].(string); ok {
+		if val == "true" {
+			persistable = true
+		}
+	}
+
 	// Marshal back to bytes for Content
 	// Note: This drops comments and re-formats, but that's acceptable for internal use.
 	// We need a serializer. k8s yaml serializer?
@@ -234,6 +245,7 @@ func parseInstanceTypeMap(raw map[string]interface{}) (InstanceType, error) {
 		Description: description,
 		LogoURL:     logoURL,
 		TargetPort:  targetPort,
+		Persistable: persistable,
 		Content:     content,
 	}, nil
 }
@@ -344,6 +356,11 @@ func JWTSecret() string {
 // SessionExpiration returns the duration for which the session is valid.
 func SessionExpiration() time.Duration {
 	return conf.SessionExpiration
+}
+
+// EnablePersistence returns true if persistent storage is enabled globally.
+func EnablePersistence() bool {
+	return conf.EnablePersistence
 }
 
 // OIDCEnabled returns true if OIDC is enabled.

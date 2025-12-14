@@ -11,6 +11,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -107,6 +108,87 @@ func (c *Client) CreateInstancePod(ctx context.Context, instance *model.Instance
 	var pod corev1.Pod
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &pod); err != nil {
 		return fmt.Errorf("kubernetes.CreateInstancePod: failed to convert unstructured to pod: %w", err)
+	}
+
+	// Persistent Volume Logic
+	if instance.Persistent {
+		// Read configuration from annotations
+		volumeSize := "10Gi"
+		if v, ok := annotations["hakoniwa.aplulu.me/volume-size"]; ok {
+			volumeSize = v
+		}
+		volumePath := "/config"
+		if v, ok := annotations["hakoniwa.aplulu.me/volume-path"]; ok {
+			volumePath = v
+		}
+		var storageClass *string
+		if v, ok := annotations["hakoniwa.aplulu.me/volume-storage-class"]; ok && v != "" {
+			storageClass = &v
+		}
+
+		// PVC Name: pvc-{sanitized_user}-{sanitized_type}
+		sanitizedType := sanitizeUserID(instance.Type) // reusing sanitizeUserID for type as it has same constraints
+		pvcName := fmt.Sprintf("pvc-%s-%s", sanitizedUser, sanitizedType)
+
+		// Check if PVC exists
+		_, err := c.clientset.CoreV1().PersistentVolumeClaims(c.namespace).Get(ctx, pvcName, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				// Create PVC
+				quant, err := resource.ParseQuantity(volumeSize)
+				if err != nil {
+					return fmt.Errorf("kubernetes.CreateInstancePod: failed to parse volume size: %w", err)
+				}
+
+				pvc := &corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: pvcName,
+						Labels: map[string]string{
+							ManagedByLabelKey:                  "hakoniwa",
+							"hakoniwa.aplulu.me/user-id":       sanitizedUser,
+							"hakoniwa.aplulu.me/instance-type": instance.Type,
+						},
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceStorage: quant,
+							},
+						},
+						StorageClassName: storageClass,
+					},
+				}
+
+				_, err = c.clientset.CoreV1().PersistentVolumeClaims(c.namespace).Create(ctx, pvc, metav1.CreateOptions{})
+				if err != nil {
+					return fmt.Errorf("kubernetes.CreateInstancePod: failed to create pvc: %w", err)
+				}
+				c.logger.Info("Created persistent volume claim", "pvc", pvcName, "user", instance.UserID)
+			} else {
+				return fmt.Errorf("kubernetes.CreateInstancePod: failed to check pvc existence: %w", err)
+			}
+		} else {
+			c.logger.Info("Reuse existing persistent volume claim", "pvc", pvcName, "user", instance.UserID)
+		}
+
+		// Mount PVC to Pod
+		volumeName := "persistent-storage"
+		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvcName,
+				},
+			},
+		})
+
+		for i := range pod.Spec.Containers {
+			pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, corev1.VolumeMount{
+				Name:      volumeName,
+				MountPath: volumePath,
+			})
+		}
 	}
 
 	// Inject Environment Variables

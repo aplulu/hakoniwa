@@ -17,6 +17,7 @@ type Instance struct {
 	DisplayName  string
 	PodName      string
 	PodIP        string
+	Persistent   bool
 	Status       InstanceStatus
 	LastActiveAt time.Time
 }
