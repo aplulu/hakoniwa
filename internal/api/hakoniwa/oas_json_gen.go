@@ -156,9 +156,13 @@ func (s *Configuration) encodeFields(e *jx.Encoder) {
 		e.FieldStart("auth_auto_login")
 		e.Bool(s.AuthAutoLogin)
 	}
+	{
+		e.FieldStart("enable_persistence")
+		e.Bool(s.EnablePersistence)
+	}
 }
 
-var jsonFieldsNameOfConfiguration = [8]string{
+var jsonFieldsNameOfConfiguration = [9]string{
 	0: "title",
 	1: "message",
 	2: "logo_url",
@@ -167,6 +171,7 @@ var jsonFieldsNameOfConfiguration = [8]string{
 	5: "auth_methods",
 	6: "oidc_name",
 	7: "auth_auto_login",
+	8: "enable_persistence",
 }
 
 // Decode decodes Configuration from json.
@@ -174,7 +179,7 @@ func (s *Configuration) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode Configuration to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -277,6 +282,18 @@ func (s *Configuration) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"auth_auto_login\"")
 			}
+		case "enable_persistence":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.EnablePersistence = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enable_persistence\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -286,8 +303,9 @@ func (s *Configuration) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b10100111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -346,10 +364,17 @@ func (s *CreateInstanceRequest) encodeFields(e *jx.Encoder) {
 		e.FieldStart("type")
 		e.Str(s.Type)
 	}
+	{
+		if s.Persistent.Set {
+			e.FieldStart("persistent")
+			s.Persistent.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfCreateInstanceRequest = [1]string{
+var jsonFieldsNameOfCreateInstanceRequest = [2]string{
 	0: "type",
+	1: "persistent",
 }
 
 // Decode decodes CreateInstanceRequest from json.
@@ -358,6 +383,7 @@ func (s *CreateInstanceRequest) Decode(d *jx.Decoder) error {
 		return errors.New("invalid: unable to decode CreateInstanceRequest to nil")
 	}
 	var requiredBitSet [1]uint8
+	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -372,6 +398,16 @@ func (s *CreateInstanceRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"type\"")
+			}
+		case "persistent":
+			if err := func() error {
+				s.Persistent.Reset()
+				if err := s.Persistent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"persistent\"")
 			}
 		default:
 			return d.Skip()
@@ -662,13 +698,20 @@ func (s *InstanceType) encodeFields(e *jx.Encoder) {
 			s.LogoURL.Encode(e)
 		}
 	}
+	{
+		if s.Persistable.Set {
+			e.FieldStart("persistable")
+			s.Persistable.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfInstanceType = [4]string{
+var jsonFieldsNameOfInstanceType = [5]string{
 	0: "id",
 	1: "name",
 	2: "description",
 	3: "logo_url",
+	4: "persistable",
 }
 
 // Decode decodes InstanceType from json.
@@ -677,6 +720,7 @@ func (s *InstanceType) Decode(d *jx.Decoder) error {
 		return errors.New("invalid: unable to decode InstanceType to nil")
 	}
 	var requiredBitSet [1]uint8
+	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -723,6 +767,16 @@ func (s *InstanceType) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"logo_url\"")
+			}
+		case "persistable":
+			if err := func() error {
+				s.Persistable.Reset()
+				if err := s.Persistable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"persistable\"")
 			}
 		default:
 			return d.Skip()
@@ -776,6 +830,41 @@ func (s *InstanceType) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InstanceType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes bool as json.
+func (o OptBool) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Bool(bool(o.Value))
+}
+
+// Decode decodes bool from json.
+func (o *OptBool) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptBool to nil")
+	}
+	o.Set = true
+	v, err := d.Bool()
+	if err != nil {
+		return err
+	}
+	o.Value = bool(v)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptBool) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptBool) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

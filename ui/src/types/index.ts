@@ -13,6 +13,7 @@ export interface InstanceType {
   name: string;
   description?: string;
   logo_url?: string;
+  persistable?: boolean;
 }
 
 export interface User {
@@ -33,4 +34,10 @@ export interface Configuration {
   auth_methods: string[];
   oidc_name: string;
   auth_auto_login: boolean;
+  enable_persistence: boolean;
+}
+
+export interface CreateInstancePayload {
+  type: string;
+  persistent?: boolean;
 }

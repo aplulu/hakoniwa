@@ -139,7 +139,7 @@ func (h *APIHandler) CreateInstance(ctx context.Context, req *hakoniwa.CreateIns
 		return nil, errors.New("unauthorized")
 	}
 
-	inst, err := h.instanceUsecase.CreateInstance(ctx, user.ID, req.Type)
+	inst, err := h.instanceUsecase.CreateInstance(ctx, user.ID, req.Type, req.Persistent.Or(false))
 	if err != nil {
 		// Check for specific errors
 		if err.Error() == "max pod count reached" || err.Error() == "max instances per user reached" || err.Error() == "max instances for this type reached" {
@@ -193,6 +193,7 @@ func (h *APIHandler) ListInstanceTypes(ctx context.Context) ([]hakoniwa.Instance
 			Name:        t.DisplayName,
 			Description: hakoniwa.NewOptString(t.Description),
 			LogoURL:     hakoniwa.NewOptString(t.LogoURL),
+			Persistable: hakoniwa.NewOptBool(t.Persistable),
 		})
 	}
 	return res, nil
@@ -210,6 +211,7 @@ func (h *APIHandler) GetConfiguration(ctx context.Context) (*hakoniwa.Configurat
 		AuthMethods:       config.AuthMethodsList(),
 		OidcName:          hakoniwa.NewOptString(config.OIDCName()),
 		AuthAutoLogin:     config.AuthAutoLogin(),
+		EnablePersistence: config.EnablePersistence(),
 	}, nil
 }
 

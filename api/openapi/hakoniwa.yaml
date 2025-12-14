@@ -192,12 +192,17 @@ components:
           type: boolean
           description: Whether to automatically log in if only one auth method is available
           default: false
+        enable_persistence:
+          type: boolean
+          description: Whether persistent storage is enabled globally
+          default: true
       required:
         - title
         - message
         - logo_url
         - auth_methods
         - auth_auto_login
+        - enable_persistence
     AuthStatus:
       type: object
       properties:
@@ -245,6 +250,10 @@ components:
         type:
           type: string
           description: Type of the instance to create
+        persistent:
+          type: boolean
+          description: Whether to enable persistent storage (OIDC users only)
+          default: false
       required:
         - type
     InstanceType:
@@ -262,6 +271,10 @@ components:
         logo_url:
           type: string
           description: URL to the logo of the instance type
+        persistable:
+          type: boolean
+          description: Whether this instance type supports persistent storage
+          default: false
       required:
         - id
         - name

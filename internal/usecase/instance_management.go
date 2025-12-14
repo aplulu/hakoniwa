@@ -15,7 +15,7 @@ import (
 type InstanceManagement interface {
 	ListInstances(ctx context.Context, userID string) ([]*model.Instance, error)
 	GetInstance(ctx context.Context, instanceID string) (*model.Instance, error)
-	CreateInstance(ctx context.Context, userID, instanceType string) (*model.Instance, error)
+	CreateInstance(ctx context.Context, userID, instanceType string, persistent bool) (*model.Instance, error)
 	DeleteInstance(ctx context.Context, userID, instanceID string) error
 	UpdateLastActive(ctx context.Context, instanceID string) error
 }
@@ -106,7 +106,12 @@ func (i *InstanceInteractor) DeleteInstance(ctx context.Context, userID, instanc
 	return i.instanceRepo.Delete(ctx, instanceID)
 }
 
-func (i *InstanceInteractor) CreateInstance(ctx context.Context, userID, instanceTypeID string) (*model.Instance, error) {
+func (i *InstanceInteractor) CreateInstance(ctx context.Context, userID, instanceTypeID string, persistent bool) (*model.Instance, error) {
+	// Enforce Global Persistence Setting
+	if !config.EnablePersistence() {
+		persistent = false
+	}
+
 	// Check Global Limit
 	globalCount, err := i.instanceRepo.Count(ctx)
 	if err != nil {
@@ -149,6 +154,7 @@ func (i *InstanceInteractor) CreateInstance(ctx context.Context, userID, instanc
 		Type:         instanceTypeID,
 		DisplayName:  it.DisplayName,
 		Status:       model.InstanceStatusPending,
+		Persistent:   persistent,
 		LastActiveAt: time.Now(),
 		// PodName set by k8s client
 	}
