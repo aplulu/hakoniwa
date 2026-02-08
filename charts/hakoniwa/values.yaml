@@ -87,6 +87,7 @@ config:
   maxPodCount: 100
   maxInstancesPerUser: 2
   maxInstancesPerUserPerType: 1
+  enablePersistence: true
   title: "Hakoniwa"
   message: "On-Demand Cloud Workspace Environment"
   logoUrl: "/_hakoniwa/img/hakoniwa_logo.webp"
@@ -121,6 +122,7 @@ podTemplate:
         hakoniwa.aplulu.me/description: "Full-featured Linux desktop environment."
         hakoniwa.aplulu.me/image-url: "/_hakoniwa/img/webtop.avif"
         hakoniwa.aplulu.me/port: "3000"
+        hakoniwa.aplulu.me/persistable: "true"
     spec:
       containers:
         - name: desktop
@@ -161,6 +163,8 @@ podTemplate:
         hakoniwa.aplulu.me/description: "VS Code environment running in your browser."
         hakoniwa.aplulu.me/image-url: "/_hakoniwa/img/code-server.avif"
         hakoniwa.aplulu.me/port: "8080"
+        hakoniwa.aplulu.me/persistable: "true"
+        hakoniwa.aplulu.me/volume-path: "/home/coder/project"
     spec:
       containers:
         - name: code-server
@@ -202,6 +206,8 @@ podTemplate:
         hakoniwa.aplulu.me/description: "Interactive environment for data analysis and machine learning."
         hakoniwa.aplulu.me/image-url: "/_hakoniwa/img/jupyter-notebook.avif"
         hakoniwa.aplulu.me/port: "8888"
+        hakoniwa.aplulu.me/persistable: "true"
+        hakoniwa.aplulu.me/volume-path: "/home/jovyan/work"
     spec:
       containers:
         - name: jupyter

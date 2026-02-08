@@ -139,7 +139,13 @@ func (h *APIHandler) CreateInstance(ctx context.Context, req *hakoniwa.CreateIns
 		return nil, errors.New("unauthorized")
 	}
 
-	inst, err := h.instanceUsecase.CreateInstance(ctx, user.ID, req.Type)
+	persistent := req.Persistent.Or(false)
+	// Enforce that only OIDC users can create persistent instances.
+	if persistent && user.Type != "openid_connect" {
+		return &hakoniwa.CreateInstanceForbidden{}, nil
+	}
+
+	inst, err := h.instanceUsecase.CreateInstance(ctx, user.ID, req.Type, persistent)
 	if err != nil {
 		// Check for specific errors
 		if err.Error() == "max pod count reached" || err.Error() == "max instances per user reached" || err.Error() == "max instances for this type reached" {
@@ -148,6 +154,9 @@ func (h *APIHandler) CreateInstance(ctx context.Context, req *hakoniwa.CreateIns
 		// Assuming invalid type returns 400?
 		if err.Error() == fmt.Sprintf("invalid instance type: %s", req.Type) {
 			return &hakoniwa.CreateInstanceBadRequest{}, nil
+		}
+		if err.Error() == "persistent storage is disabled" {
+			return &hakoniwa.CreateInstanceForbidden{}, nil
 		}
 
 		return nil, err
@@ -193,6 +202,7 @@ func (h *APIHandler) ListInstanceTypes(ctx context.Context) ([]hakoniwa.Instance
 			Name:        t.DisplayName,
 			Description: hakoniwa.NewOptString(t.Description),
 			LogoURL:     hakoniwa.NewOptString(t.LogoURL),
+			Persistable: hakoniwa.NewOptBool(t.Persistable),
 		})
 	}
 	return res, nil
@@ -210,6 +220,7 @@ func (h *APIHandler) GetConfiguration(ctx context.Context) (*hakoniwa.Configurat
 		AuthMethods:       config.AuthMethodsList(),
 		OidcName:          hakoniwa.NewOptString(config.OIDCName()),
 		AuthAutoLogin:     config.AuthAutoLogin(),
+		EnablePersistence: config.EnablePersistence(),
 	}, nil
 }
 

@@ -101,7 +101,9 @@ func StartServer(log *slog.Logger, staticDir string) error {
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/healthz" {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("ok"))
+				if _, err := w.Write([]byte("ok")); err != nil {
+					log.Error("failed to write healthz response", "error", err)
+				}
 				return
 			}
 

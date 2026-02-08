@@ -56,6 +56,7 @@ Configuration is handled via environment variables:
 | `MAX_POD_COUNT` | Maximum total concurrent pods (across all users) | `100` |
 | `MAX_INSTANCES_PER_USER` | Maximum instances allowed per user | `5` |
 | `MAX_INSTANCES_PER_USER_PER_TYPE` | Maximum instances of a specific type allowed per user | `3` |
+| `ENABLE_PERSISTENCE` | Enable persistent storage feature globally | `true` |
 | `POD_TEMPLATE_PATH` | Path to a Pod YAML template file. This file can contain multiple Pod definitions (as a Kubernetes List or multi-document YAML), where each `metadata.name` defines an instance type (e.g., "webtop", "jupyter"). | `""` (Uses embedded default) |
 | `TITLE` | Application title | `Hakoniwa` |
 | `MESSAGE` | Welcome message displayed below the title | `On-Demand Cloud Workspace Environment` |
@@ -71,7 +72,13 @@ Each Pod definition **must** include:
 *   `metadata.name`: This will be used as the unique ID for the instance type (e.g., "webtop", "jupyter").
 *   `metadata.annotations`:
     *   `hakoniwa.aplulu.me/display-name`: (Optional) A human-readable name for the instance type, displayed in the UI. Defaults to `metadata.name` if not provided.
+    *   `hakoniwa.aplulu.me/description`: (Optional) A description of the instance type, displayed in the UI.
+    *   `hakoniwa.aplulu.me/image-url` or `hakoniwa.aplulu.me/logo-url`: (Optional) URL to an image/logo for the instance type.
     *   `hakoniwa.aplulu.me/port`: The target port of the application running in the Pod (e.g., "3000" for Webtop, "8888" for Jupyter). Defaults to "3000".
+    *   `hakoniwa.aplulu.me/persistable`: (Optional) Set to `"true"` to allow OIDC authenticated users to enable persistent storage for this instance type.
+    *   `hakoniwa.aplulu.me/volume-path`: (Optional) The path where the persistent volume will be mounted within the container. Defaults to `/config`.
+    *   `hakoniwa.aplulu.me/volume-size`: (Optional) The size of the persistent volume claim to request. Defaults to `10Gi`.
+    *   `hakoniwa.aplulu.me/volume-storage-class`: (Optional) The StorageClass to use for the persistent volume claim. If omitted, the cluster's default StorageClass is used.
 
 Example for `pod_template.yaml`:
 ```yaml
@@ -81,7 +88,11 @@ metadata:
   name: webtop
   annotations:
     hakoniwa.aplulu.me/display-name: "Webtop (XFCE Desktop)"
+    hakoniwa.aplulu.me/description: "Full-featured Linux desktop environment."
+    hakoniwa.aplulu.me/image-url: "/_hakoniwa/img/webtop.avif"
     hakoniwa.aplulu.me/port: "3000"
+    hakoniwa.aplulu.me/persistable: "true"
+    hakoniwa.aplulu.me/volume-path: "/config"
 spec:
   containers:
   - name: webtop

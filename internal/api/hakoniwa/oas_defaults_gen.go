@@ -12,4 +12,24 @@ func (s *Configuration) setDefaults() {
 		val := bool(false)
 		s.AuthAutoLogin = val
 	}
+	{
+		val := bool(true)
+		s.EnablePersistence = val
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *CreateInstanceRequest) setDefaults() {
+	{
+		val := bool(false)
+		s.Persistent.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *InstanceType) setDefaults() {
+	{
+		val := bool(false)
+		s.Persistable.SetTo(val)
+	}
 }

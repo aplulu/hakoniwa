@@ -68,6 +68,8 @@ spec:
               value: {{ .Values.config.maxInstancesPerUser | quote }}
             - name: MAX_INSTANCES_PER_USER_PER_TYPE
               value: {{ .Values.config.maxInstancesPerUserPerType | quote }}
+            - name: ENABLE_PERSISTENCE
+              value: {{ .Values.config.enablePersistence | quote }}
             - name: POD_TEMPLATE_PATH
               value: "/etc/hakoniwa/pod_template.yaml"
             - name: TITLE

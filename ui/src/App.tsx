@@ -13,7 +13,12 @@ import {
 import { AlertCircle } from 'lucide-react';
 
 // Types
-import type { AuthStatus, Configuration, Instance, InstanceType } from './types';
+import type {
+  AuthStatus,
+  Configuration,
+  Instance,
+  InstanceType,
+} from './types';
 
 // Components
 import { LoadingScreen } from './components/common/LoadingScreen';
@@ -55,16 +60,12 @@ function App() {
     data: authData,
     error: swrAuthError,
     isLoading: isAuthLoading,
-  } = useSWR<AuthStatus | null>(
-    '/_hakoniwa/api/auth/me', 
-    fetcher,
-    {
-      onError: (err) => {
-        console.error(err);
-        setAuthError(t('error.connection_failed'));
-      },
-    }
-  );
+  } = useSWR<AuthStatus | null>('/_hakoniwa/api/auth/me', fetcher, {
+    onError: (err) => {
+      console.error(err);
+      setAuthError(t('error.connection_failed'));
+    },
+  });
 
   // Instances
   const {
@@ -80,38 +81,41 @@ function App() {
   );
 
   // Instance Types
-  const {
-    data: instanceTypes,
-  } = useSWR<InstanceType[]>(
+  const { data: instanceTypes } = useSWR<InstanceType[]>(
     authData ? '/_hakoniwa/api/instance-types' : null,
     fetcher
   );
 
   // Create Instance Action
-  const createInstance = useCallback(async (typeId: string) => {
-    setIsCreating(true);
-    setAuthError('');
-    try {
-      const res = await fetch('/_hakoniwa/api/instances', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ type: typeId }),
-      });
-      if (res.status === 503) {
-        throw new Error(t('error.max_instances'));
+  const createInstance = useCallback(
+    async (typeId: string, persistent: boolean = false) => {
+      setIsCreating(true);
+      setAuthError('');
+      try {
+        const res = await fetch('/_hakoniwa/api/instances', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ type: typeId, persistent }),
+        });
+        if (res.status === 503) {
+          throw new Error(t('error.max_instances'));
+        }
+        if (!res.ok) throw new Error('Failed to create instance');
+        await mutate('/_hakoniwa/api/instances');
+        setView('dashboard');
+      } catch (err: unknown) {
+        console.error(err);
+        const message =
+          err instanceof Error ? err.message : t('error.generic_desc');
+        setAuthError(message);
+      } finally {
+        setIsCreating(false);
       }
-      if (!res.ok) throw new Error('Failed to create instance');
-      await mutate('/_hakoniwa/api/instances');
-      setView('dashboard');
-    } catch (err: any) {
-      console.error(err);
-      setAuthError(err.message || t('error.generic_desc'));
-    } finally {
-      setIsCreating(false);
-    }
-  }, [t]);
+    },
+    [t]
+  );
 
   // Delete Instance Action
   const deleteInstance = useCallback(async (id: string) => {
@@ -121,7 +125,7 @@ function App() {
       });
       if (!res.ok) throw new Error('Failed to delete instance');
       await mutate('/_hakoniwa/api/instances');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       // Optionally show error
     }
@@ -150,8 +154,10 @@ function App() {
         method: 'POST',
       });
       // Clear client-side cookies just in case, though backend should handle it
-      document.cookie = 'hakoniwa_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      document.cookie = 'hakoniwa_instance_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      document.cookie =
+        'hakoniwa_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      document.cookie =
+        'hakoniwa_instance_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       window.location.reload();
     } catch (err) {
       console.error('Logout failed', err);
@@ -161,8 +167,15 @@ function App() {
 
   // Auto Login Check
   useEffect(() => {
-    if (isAuthLoading || !config || !config.auth_auto_login || authError || authData) return;
-    
+    if (
+      isAuthLoading ||
+      !config ||
+      !config.auth_auto_login ||
+      authError ||
+      authData
+    )
+      return;
+
     // Don't skip if we are already in an error state from URL
     if (new URLSearchParams(window.location.search).get('error')) return;
 
@@ -189,7 +202,8 @@ function App() {
     }
   }, [t]);
 
-  const isLoading = isAuthLoading || (authData && isInstancesLoading && view === 'dashboard');
+  const isLoading =
+    isAuthLoading || (authData && isInstancesLoading && view === 'dashboard');
 
   // 1. Loading State
   if (isLoading && !authError) {
@@ -200,62 +214,85 @@ function App() {
   if (authData) {
     return (
       <Theme accentColor="indigo" grayColor="slate" radius="large">
-        <Box style={{ 
-          minHeight: '100vh', 
-          backgroundColor: 'var(--gray-2)',
-          backgroundImage: 'radial-gradient(circle at 50% 0, var(--indigo-3), transparent 50%)'
-        }}>
+        <Box
+          style={{
+            minHeight: '100vh',
+            backgroundColor: 'var(--gray-2)',
+            backgroundImage:
+              'radial-gradient(circle at 50% 0, var(--indigo-3), transparent 50%)',
+          }}>
           <Header config={config} user={authData.user} onLogout={logout} />
 
           {/* Main Content */}
           <Container size="4" p="4" pt="8">
             {instancesError && (
-               <Box mb="4" p="3" style={{ background: 'var(--red-3)', borderRadius: 'var(--radius-2)' }}>
-                  <Flex gap="2" align="center">
-                    <AlertCircle size={16} color="var(--red-11)" />
-                    <Text color="red" size="2" weight="medium">{t('error.generic_desc')}</Text>
-                  </Flex>
-               </Box>
+              <Box
+                mb="4"
+                p="3"
+                style={{
+                  background: 'var(--red-3)',
+                  borderRadius: 'var(--radius-2)',
+                }}>
+                <Flex gap="2" align="center">
+                  <AlertCircle size={16} color="var(--red-11)" />
+                  <Text color="red" size="2" weight="medium">
+                    {t('error.generic_desc')}
+                  </Text>
+                </Flex>
+              </Box>
             )}
             {view === 'dashboard' ? (
               <Flex direction="column" gap="6">
                 <Flex justify="between" align="end">
-                   <Box>
-                     <Heading size="8" mb="2" style={{ fontWeight: 900, letterSpacing: '-0.03em' }}>{t('dashboard.title')}</Heading>
-                     <Text size="3" color="gray">{t('dashboard.subtitle')}</Text>
-                   </Box>
+                  <Box>
+                    <Heading
+                      size="8"
+                      mb="2"
+                      style={{ fontWeight: 900, letterSpacing: '-0.03em' }}>
+                      {t('dashboard.title')}
+                    </Heading>
+                    <Text size="3" color="gray">
+                      {t('dashboard.subtitle')}
+                    </Text>
+                  </Box>
                 </Flex>
-                
-                <Grid columns={{ initial: '1', sm: '2', lg: '3', xl: '4' }} gap="6">
+
+                <Grid
+                  columns={{ initial: '1', sm: '2', lg: '3', xl: '4' }}
+                  gap="6">
                   {/* Instance Cards */}
                   {instances?.map((inst, index) => {
-                    const typeInfo = instanceTypes?.find(t => t.id === inst.type);
+                    const typeInfo = instanceTypes?.find(
+                      (t) => t.id === inst.type
+                    );
                     return (
-                      <InstanceCard 
+                      <InstanceCard
                         key={inst.id}
                         instance={inst}
                         typeInfo={typeInfo}
                         index={index}
                         onDelete={deleteInstance}
                         onOpen={(id) => {
-                           document.cookie = `hakoniwa_instance_id=${id}; path=/`;
-                           window.location.href = '/';
+                          document.cookie = `hakoniwa_instance_id=${id}; path=/`;
+                          window.location.href = '/';
                         }}
                       />
                     );
                   })}
 
                   {/* Create New Card Button */}
-                  <CreateInstanceCard 
-                    delayIndex={instances?.length || 0} 
-                    onClick={() => setView('create')} 
+                  <CreateInstanceCard
+                    delayIndex={instances?.length || 0}
+                    onClick={() => setView('create')}
                   />
                 </Grid>
               </Flex>
             ) : (
               /* Create Workspace Screen */
               <CreateInstanceView
+                user={authData.user}
                 instanceTypes={instanceTypes}
+                enablePersistence={config?.enable_persistence ?? false}
                 isCreating={isCreating}
                 error={authError}
                 onBack={() => setView('dashboard')}
@@ -269,7 +306,9 @@ function App() {
   }
 
   if (authError || swrAuthError) {
-    return <ErrorScreen error={authError} onRetry={() => window.location.reload()} />;
+    return (
+      <ErrorScreen error={authError} onRetry={() => window.location.reload()} />
+    );
   }
 
   // 3. Login View (Unauthenticated)

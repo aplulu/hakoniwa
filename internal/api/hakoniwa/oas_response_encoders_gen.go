@@ -34,6 +34,12 @@ func encodeCreateInstanceResponse(response CreateInstanceRes, w http.ResponseWri
 
 		return nil
 
+	case *CreateInstanceForbidden:
+		w.WriteHeader(403)
+		span.SetStatus(codes.Error, http.StatusText(403))
+
+		return nil
+
 	case *CreateInstanceServiceUnavailable:
 		w.WriteHeader(503)
 		span.SetStatus(codes.Error, http.StatusText(503))

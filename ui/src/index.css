@@ -3,14 +3,20 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-spin {
@@ -45,21 +51,39 @@ body {
 
 /* Status Pulses */
 @keyframes pulse-green {
-  0% { box-shadow: 0 0 0 0 rgba(70, 167, 88, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(70, 167, 88, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(70, 167, 88, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(70, 167, 88, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(70, 167, 88, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(70, 167, 88, 0);
+  }
 }
 
 @keyframes pulse-orange {
-  0% { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.2); }
-  100% { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 166, 35, 0);
+  }
 }
 
 @keyframes pulse-red {
-  0% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(229, 72, 77, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(229, 72, 77, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(229, 72, 77, 0);
+  }
 }
 
 .status-dot-running {
@@ -74,8 +98,12 @@ body {
 
 /* Loading Button Shimmer */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .btn-loading {
@@ -83,9 +111,9 @@ body {
   overflow: hidden;
   /* We use a pseudo-element or direct background for shimmer to not affect text */
   background: linear-gradient(
-    90deg, 
-    transparent 0%, 
-    rgba(0, 0, 0, 0.05) 50%, 
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.05) 50%,
     transparent 100%
   );
   background-size: 200% 100%;
@@ -102,8 +130,16 @@ body {
 }
 
 @keyframes dots {
-  0% { content: ''; }
-  25% { content: '.'; }
-  50% { content: '..'; }
-  75% { content: '...'; }
+  0% {
+    content: '';
+  }
+  25% {
+    content: '.';
+  }
+  50% {
+    content: '..';
+  }
+  75% {
+    content: '...';
+  }
 }
