@@ -1,4 +1,12 @@
-import { Flex, Card, Box, Heading, Text, Button, Link as RadixLink } from '@radix-ui/themes';
+import {
+  Flex,
+  Card,
+  Box,
+  Heading,
+  Text,
+  Button,
+  Link as RadixLink,
+} from '@radix-ui/themes';
 import { ArrowRight } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
 import type { Configuration } from '../../types';

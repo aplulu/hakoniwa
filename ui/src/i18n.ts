@@ -14,7 +14,8 @@ const resources = {
         unknown: 'unknown',
       },
       dashboard: {
-        description: 'Your desktop environment is ready to be created. Click the button below to start.',
+        description:
+          'Your desktop environment is ready to be created. Click the button below to start.',
         title: 'My Workspaces',
         subtitle: 'Manage your cloud development environments.',
       },
@@ -40,9 +41,12 @@ const resources = {
           placeholder_select: 'Select type',
           no_types: 'No instance types available',
           enable_persistent: 'Enable Persistent Storage',
-          persistent_disabled_hint: 'Persistent storage is only available for authenticated users',
-          persistent_disabled_global: 'Persistent storage is disabled by the administrator',
-          persistent_disabled_type: 'This instance type does not support persistent storage',
+          persistent_disabled_hint:
+            'Persistent storage is only available for authenticated users',
+          persistent_disabled_global:
+            'Persistent storage is disabled by the administrator',
+          persistent_disabled_type:
+            'This instance type does not support persistent storage',
         },
       },
       user: {
@@ -54,7 +58,8 @@ const resources = {
         generic_desc: 'Something went wrong while connecting.',
         connection_failed: 'Failed to connect to server',
         login_failed: 'Login failed',
-        max_instances: 'Maximum number of instances reached. Please try again later.',
+        max_instances:
+          'Maximum number of instances reached. Please try again later.',
       },
       action: {
         retry: 'Retry',
@@ -86,7 +91,8 @@ const resources = {
         unknown: '不明',
       },
       dashboard: {
-        description: 'デスクトップ環境を作成する準備ができました。下のボタンをクリックして開始してください。',
+        description:
+          'デスクトップ環境を作成する準備ができました。下のボタンをクリックして開始してください。',
         title: 'ワークスペース',
         subtitle: 'クラウド開発環境を管理します。',
       },
@@ -112,9 +118,12 @@ const resources = {
           placeholder_select: 'タイプを選択',
           no_types: '利用可能なタイプがありません',
           enable_persistent: '永続化ボリュームを有効にする',
-          persistent_disabled_hint: '永続化ボリュームは認証済みユーザーのみ利用可能です',
-          persistent_disabled_global: '永続化ボリュームは管理者によって無効化されています',
-          persistent_disabled_type: 'このタイプは永続化ボリュームに対応していません',
+          persistent_disabled_hint:
+            '永続化ボリュームは認証済みユーザーのみ利用可能です',
+          persistent_disabled_global:
+            '永続化ボリュームは管理者によって無効化されています',
+          persistent_disabled_type:
+            'このタイプは永続化ボリュームに対応していません',
         },
       },
       user: {
@@ -126,7 +135,8 @@ const resources = {
         generic_desc: '接続中に問題が発生しました。',
         connection_failed: 'サーバーへの接続に失敗しました',
         login_failed: 'ログインに失敗しました',
-        max_instances: 'インスタンス数の上限に達しました。しばらくしてから再度お試しください。',
+        max_instances:
+          'インスタンス数の上限に達しました。しばらくしてから再度お試しください。',
       },
       action: {
         retry: '再試行',

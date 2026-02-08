@@ -11,11 +11,7 @@ export function ErrorScreen({ error, onRetry }: ErrorScreenProps) {
   const { t } = useTranslation();
 
   return (
-    <Flex
-      align="center"
-      justify="center"
-      style={{ minHeight: '100vh' }}
-      p="4">
+    <Flex align="center" justify="center" style={{ minHeight: '100vh' }} p="4">
       <Card size="3" style={{ width: '100%', maxWidth: 400 }}>
         <Flex gap="4" direction="column">
           <Flex gap="2" align="center">

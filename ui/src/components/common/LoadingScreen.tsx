@@ -8,7 +8,7 @@ interface LoadingScreenProps {
 
 export function LoadingScreen({ title }: LoadingScreenProps) {
   const { t } = useTranslation();
-  
+
   return (
     <Flex align="center" justify="center" style={{ minHeight: '100vh' }}>
       <Flex direction="column" align="center" gap="4">
