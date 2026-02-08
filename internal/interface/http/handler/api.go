@@ -155,6 +155,9 @@ func (h *APIHandler) CreateInstance(ctx context.Context, req *hakoniwa.CreateIns
 		if err.Error() == fmt.Sprintf("invalid instance type: %s", req.Type) {
 			return &hakoniwa.CreateInstanceBadRequest{}, nil
 		}
+		if err.Error() == "persistent storage is disabled" {
+			return &hakoniwa.CreateInstanceForbidden{}, nil
+		}
 
 		return nil, err
 	}

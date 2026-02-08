@@ -65,6 +65,9 @@ func decodeCreateInstanceResponse(resp *http.Response) (res CreateInstanceRes, _
 	case 400:
 		// Code 400.
 		return &CreateInstanceBadRequest{}, nil
+	case 403:
+		// Code 403.
+		return &CreateInstanceForbidden{}, nil
 	case 503:
 		// Code 503.
 		return &CreateInstanceServiceUnavailable{}, nil

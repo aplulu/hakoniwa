@@ -140,6 +140,11 @@ type CreateInstanceBadRequest struct{}
 
 func (*CreateInstanceBadRequest) createInstanceRes() {}
 
+// CreateInstanceForbidden is response for CreateInstance operation.
+type CreateInstanceForbidden struct{}
+
+func (*CreateInstanceForbidden) createInstanceRes() {}
+
 // Ref: #/components/schemas/CreateInstanceRequest
 type CreateInstanceRequest struct {
 	// Type of the instance to create.

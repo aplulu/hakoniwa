@@ -132,6 +132,8 @@ paths:
                 $ref: '#/components/schemas/Instance'
         '400':
           description: Bad Request (e.g., invalid instance type)
+        '403':
+          description: Forbidden (e.g., persistence requested but disabled)
         '503':
           description: Max instances reached
   /instance-types:

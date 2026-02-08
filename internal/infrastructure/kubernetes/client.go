@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -126,9 +127,8 @@ func (c *Client) CreateInstancePod(ctx context.Context, instance *model.Instance
 			storageClass = &v
 		}
 
-		// PVC Name: pvc-{sanitized_user}-{sanitized_type}
-		sanitizedType := sanitizeUserID(instance.Type) // reusing sanitizeUserID for type as it has same constraints
-		pvcName := fmt.Sprintf("pvc-%s-%s", sanitizedUser, sanitizedType)
+		// PVC Name: unique and safe for Kubernetes (max 63 chars)
+		pvcName := generatePVCName(instance.UserID, instance.Type)
 
 		// Check if PVC exists
 		_, err := c.clientset.CoreV1().PersistentVolumeClaims(c.namespace).Get(ctx, pvcName, metav1.GetOptions{})
@@ -355,4 +355,27 @@ func isPodReady(pod *corev1.Pod) bool {
 		}
 	}
 	return false
+}
+
+// generatePVCName generates a unique, safe name for a PersistentVolumeClaim
+// ensuring it doesn't exceed the 63-character limit of Kubernetes.
+func generatePVCName(userID, instanceType string) string {
+	// "pvc-" (4) + "-" (1) + hash (8) = 13 chars used for boilerplate.
+	// 63 - 13 = 50 chars left for sanitized user and type.
+	sUser := sanitizeUserID(userID)
+	sType := sanitizeUserID(instanceType)
+
+	// Combine them and hash for uniqueness
+	fullIdent := fmt.Sprintf("%s/%s", userID, instanceType)
+	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(fullIdent)))[:8]
+
+	// Truncate user and type to fit (25 + 20 = 45 chars max)
+	if len(sUser) > 25 {
+		sUser = sUser[:25]
+	}
+	if len(sType) > 20 {
+		sType = sType[:20]
+	}
+
+	return fmt.Sprintf("pvc-%s-%s-%s", sUser, sType, hash)
 }
