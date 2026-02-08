@@ -139,7 +139,13 @@ func (h *APIHandler) CreateInstance(ctx context.Context, req *hakoniwa.CreateIns
 		return nil, errors.New("unauthorized")
 	}
 
-	inst, err := h.instanceUsecase.CreateInstance(ctx, user.ID, req.Type, req.Persistent.Or(false))
+	persistent := req.Persistent.Or(false)
+	// Enforce that only OIDC users can create persistent instances.
+	if persistent && user.Type != "openid_connect" {
+		return &hakoniwa.CreateInstanceForbidden{}, nil
+	}
+
+	inst, err := h.instanceUsecase.CreateInstance(ctx, user.ID, req.Type, persistent)
 	if err != nil {
 		// Check for specific errors
 		if err.Error() == "max pod count reached" || err.Error() == "max instances per user reached" || err.Error() == "max instances for this type reached" {
