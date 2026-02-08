@@ -162,9 +162,15 @@ func (c *Client) CreateInstancePod(ctx context.Context, instance *model.Instance
 
 				_, err = c.clientset.CoreV1().PersistentVolumeClaims(c.namespace).Create(ctx, pvc, metav1.CreateOptions{})
 				if err != nil {
-					return fmt.Errorf("kubernetes.CreateInstancePod: failed to create pvc: %w", err)
+					if k8serrors.IsAlreadyExists(err) {
+						// PVC was created by a concurrent request; treat as success and reuse it.
+						c.logger.Info("Persistent volume claim already exists, reusing", "pvc", pvcName, "user", instance.UserID)
+					} else {
+						return fmt.Errorf("kubernetes.CreateInstancePod: failed to create pvc: %w", err)
+					}
+				} else {
+					c.logger.Info("Created persistent volume claim", "pvc", pvcName, "user", instance.UserID)
 				}
-				c.logger.Info("Created persistent volume claim", "pvc", pvcName, "user", instance.UserID)
 			} else {
 				return fmt.Errorf("kubernetes.CreateInstancePod: failed to check pvc existence: %w", err)
 			}
